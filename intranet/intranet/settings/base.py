@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 INSTALLED_APPS = [
     # This project
-    "home",
+
     "website",
     "custom_media",
     "custom_user",
@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "wagtailcache",
     "wagtailseo",
     # Wagtail
+    "jazzmin",
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
     "wagtail.embeds",
@@ -58,6 +59,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sitemaps",
+    # Allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.microsoft',
+    # Widget Tweaks
+    "widget_tweaks",
+    'comment',
+    "home",
+    "components",
 ]
 
 MIDDLEWARE = [
@@ -76,6 +88,8 @@ MIDDLEWARE = [
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
     # Fetch from cache. Must be LAST.
     "wagtailcache.cache.FetchFromCacheMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
+    "intranet.middleware.LoginRequiredMiddleware"
 ]
 
 ROOT_URLCONF = "intranet.urls"

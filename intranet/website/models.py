@@ -22,9 +22,19 @@ from django.db import models
 from modelcluster.fields import ParentalKey
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
-from wagtail.fields import StreamField
+from wagtail.fields import StreamField, RichTextField
 from wagtail.snippets.models import register_snippet
+from django.utils import timezone
+from components.models import BlogPost
 
+from components.blocks import (
+     MyWorkspace,
+     BlogPostBlock,
+     BlogPostDisplayBlock,
+     GoogleDriveBlock
+)
+from components.utils import get_google_drive_files
+from wagtail.contrib.settings.models import BaseGenericSetting, register_setting
 
 class ArticlePage(CoderedArticlePage):
     """
@@ -257,3 +267,29 @@ class Footer(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+# @register_setting
+# class ThemeSettings(BaseGenericSetting):
+#     admin_logo = models.FileField(
+#         upload_to='admin_branding/',
+#         null=True,
+#         blank=True,
+#         help_text='Upload your admin logo'
+#     )
+
+#     panels = [
+#         FieldPanel('admin_logo'),
+#     ]
+
+#     def clean(self):
+#         from django.core.exceptions import ValidationError
+#         allowed_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.bmp', '.webp']
+#         if self.admin_logo:
+#             file_extension = '.' + self.admin_logo.name.split('.')[-1].lower()
+#             if file_extension not in allowed_extensions:
+#                 raise ValidationError({
+#                     'admin_logo': 'Unsupported file format. Please upload an image in PNG, JPG, JPEG, GIF, SVG, BMP, or WEBP format.'
+#                 })
+
+#     class Meta:
+#         verbose_name = "Theme Settings"
