@@ -1,4 +1,10 @@
 {% if value.display_snippet.show_blogpost %}
+<!-- Include Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<!-- Add CSRF token meta tag -->
+{% csrf_token %}
+
 <div class="row mt-4">
     <div class="col-12">
         <div class="bg-white p-4 border rounded-lg rounded">
@@ -84,10 +90,9 @@
 <script src="https://unpkg.com/htmx.org@2.0.6"></script>
 
 <script>
-document.body.addEventListener('htmx:afterRequest', function(evt) {
-    if (evt.detail.successful && evt.detail.target.id === 'blog-post-list') {
-        // Re-initialize any necessary JavaScript after content is loaded
-    }
+// Add CSRF token to all HTMX requests
+document.body.addEventListener('htmx:configRequest', function(evt) {
+    evt.detail.headers['X-CSRFToken'] = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
 });
 
 // Keep existing JavaScript for department loading

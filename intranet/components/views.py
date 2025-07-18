@@ -167,6 +167,15 @@ def toggle_like_post(request, post_id):
         # Update the likes count
         post.update_likes_count()
         
+        # If it's an HTMX request, return the updated like button
+        if request.headers.get('HX-Request'):
+            return render(request, 'components/partials/like_button.html', {
+                'post_id': post.id,
+                'is_liked': liked,
+                'likes_count': post.likes_count
+            })
+        
+        # For regular AJAX requests, return JSON
         return JsonResponse({
             'status': 'success',
             'likes_count': post.likes_count,
