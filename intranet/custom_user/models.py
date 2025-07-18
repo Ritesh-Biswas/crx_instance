@@ -5,7 +5,9 @@ from django.utils.translation import gettext_lazy as _
 from wagtail.images import get_image_model_string
 from django.utils.timezone import now
 from django.urls import reverse
-from taggit.managers import TaggableManager 
+from taggit.managers import TaggableManager
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class UserManager(BaseUserManager):
@@ -141,3 +143,18 @@ class UserExtraProfile(models.Model):
         Uses the username from the associated User model for the URL.
         """
         return reverse('custom_user:profile-detail', args=[self.user.username])
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """Create a UserExtraProfile for every new user"""
+    if created:
+        UserExtraProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    """Ensure the UserExtraProfile is saved when the user is saved"""
+    try:
+        instance.userextraprofile.save()
+    except UserExtraProfile.DoesNotExist:
+        # Create profile if it doesn't exist
+        UserExtraProfile.objects.create(user=instance)
