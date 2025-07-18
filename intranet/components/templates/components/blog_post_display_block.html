@@ -95,6 +95,90 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     evt.detail.headers['X-CSRFToken'] = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
 });
 
+// Function to format time in local 24-hour format
+function formatLocalTime(timestamp) {
+    if (!timestamp) return '';
+    
+    try {
+        // Check if the timestamp is in ET (-04:00)
+        if (timestamp.includes('-04:00')) {
+            // Extract time directly from the timestamp string
+            const matches = timestamp.match(/T(\d{2}):(\d{2})/);
+            if (matches) {
+                const [_, hours, minutes] = matches;
+                // Format with leading zeros
+                return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+            }
+            return '';
+        } else {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            
+            // For UTC timestamps, subtract 4 hours to get back to ET time
+            const etHours = date.getUTCHours() - 4;  // Convert UTC to ET
+            const minutes = date.getUTCMinutes();
+            
+            // Create a new date with ET hours
+            const today = new Date();
+            const etTime = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                today.getDate(),
+                etHours,
+                minutes
+            );
+            
+            return etTime.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+    } catch (error) {
+        console.error('Error formatting time:', error);
+        return '';
+    }
+}
+
+// Update timestamps after content is loaded
+function updateTimestamps() {
+    document.querySelectorAll('.local-time').forEach(element => {
+        const timestamp = element.dataset.timestamp;
+        if (timestamp) {
+            element.textContent = formatLocalTime(timestamp);
+        }
+    });
+
+    document.querySelectorAll('.poll-end-time').forEach(element => {
+        const timestamp = element.dataset.timestamp;
+        if (timestamp) {
+            const formattedTime = formatLocalTime(timestamp);
+            element.textContent = `Ends at ${formattedTime}`;
+        }
+    });
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', function() {
+    updateTimestamps();
+});
+
+// HTMX event handlers
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    setTimeout(updateTimestamps, 100);
+});
+
+document.body.addEventListener('htmx:afterSettle', function(evt) {
+    setTimeout(updateTimestamps, 200);
+});
+
+// Handle HTMX errors
+document.body.addEventListener('htmx:responseError', function(evt) {
+    console.error('HTMX Error:', evt.detail);
+});
+
 // Keep existing JavaScript for department loading
 document.addEventListener('DOMContentLoaded', function() {
     const departmentDropdown = document.getElementById('department_filter');

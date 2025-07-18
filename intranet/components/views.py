@@ -69,8 +69,17 @@ def blog_post_create_view(request):
             poll_options = request.POST.getlist('poll_options[]')
             
             if poll_end_time:
-                post.poll_end_time = poll_end_time
-                post.save()
+                try:
+                    # Convert to UTC before saving
+                    local_dt = datetime.fromisoformat(poll_end_time)
+                    utc_dt = timezone.make_aware(local_dt, timezone.get_current_timezone())
+                    post.poll_end_time = utc_dt
+                    post.save()
+                except ValueError as e:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Invalid datetime format: {str(e)}'
+                    }, status=400)
             
             for option_text in poll_options:
                 if option_text.strip():
@@ -78,8 +87,43 @@ def blog_post_create_view(request):
 
         # If it's an HTMX request, return just the new post HTML
         if request.headers.get('HX-Request'):
+            # Get the local timezone
+            local_tz = timezone.get_current_timezone()
+            
+            # Convert created_at to local time
+            local_created_at = timezone.localtime(post.created_at, local_tz)
+
+            # For poll end time, preserve the original input time
+            poll_end_time_str = None
+            if post.poll_end_time:
+                # Get the original input time back
+                original_time = request.POST.get('poll_end_time')
+                if original_time:
+                    # Format it with ET timezone
+                    poll_end_time_str = f"{original_time}-04:00"
+            
+            # Format post data for template
+            post_data = {
+                'id': post.id,
+                'author': post.author.user.id,
+                'author_name': post.author.user.get_full_name(),
+                'author_profile_url': reverse('custom_user:profile-detail', kwargs={'username': post.author.user.username}),
+                'title': post.title,
+                'type': post.post_type,
+                'body': post.body,
+                'created_at': local_created_at.strftime('%Y-%m-%dT%H:%M:%S-04:00'),  # Format with ET timezone
+                'poll_end_time': poll_end_time_str,  # Use original input time
+                'likes_count': 0,
+                'comments_count': 0,
+                'sub_department': post.subdepartment.name if post.subdepartment else 'Global',
+                'dept_url': post.subdepartment.url if post.subdepartment else '',
+                'url': reverse('components:blog_post_detail', kwargs={'pk': post.pk}),
+                'total_votes': 0,
+                'is_poll_active': post.is_poll_active,
+                'is_like_by_user': False
+            }
             return render(request, 'components/partials/post_list.html', {
-                'posts': [post],
+                'posts': [post_data]
             })
 
         # For regular requests, return JSON response
@@ -282,6 +326,10 @@ def load_more_posts(request):
         
         is_liked = user.is_authenticated and post.likes.filter(id=user.id).exists()
 
+        # Convert to user's timezone for display
+        local_tz = timezone.get_current_timezone()
+        local_created_at = timezone.localtime(post.created_at, local_tz)
+
         posts_data.append({
             'id': post.id,
             'author': post.author.user.id,
@@ -290,7 +338,8 @@ def load_more_posts(request):
             'title': post.title,
             'type': post.post_type,
             'body': post.body,
-            'created_at': post.created_at.strftime('%B %d, %Y, %I:%M %p'),
+            'created_at': local_created_at.isoformat(),
+            'poll_end_time': post.poll_end_time.isoformat() if post.poll_end_time else None,
             'likes_count': post.likes_count,
             'comments_count': post.get_comments().count(),
             'sub_department': post.subdepartment.name if post.subdepartment else 'Global',

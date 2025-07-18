@@ -431,34 +431,79 @@
         document.addEventListener("DOMContentLoaded", function () {
             const timerElement = document.getElementById("poll-timer");
             if (timerElement) {
-                const endTime = new Date(timerElement.getAttribute("data-end")).getTime();
+                const rawEndTime = timerElement.getAttribute("data-end");
+                console.log('Raw end time from data attribute:', rawEndTime);
+                
+                // Convert Eastern Time to IST by adding the difference (ET+4 to IST+5:30 = 9:30 hours)
+                const endTimeET = new Date(rawEndTime);
+                // Create a date object that represents the same time in IST
+                const endTimeIST = new Date(rawEndTime.replace('-04:00', '+05:30'));
+                
+                console.log('Original ET time:', endTimeET.toLocaleString('en-US', { 
+                    timeZone: 'America/New_York',
+                    hour12: false 
+                }));
+                console.log('Converted to IST:', endTimeIST.toLocaleString('en-US', { 
+                    timeZone: 'Asia/Kolkata',
+                    hour12: false 
+                }));
                 
                 function updateTimer() {
-                    const now = new Date().getTime();
-                    const timeLeft = endTime - now;
-    
+                    const now = new Date();
+                    // Convert current time to IST for comparison
+                    const nowIST = new Date(now.toLocaleString('en-US', {
+                        timeZone: 'Asia/Kolkata'
+                    }));
+                    const timeLeft = endTimeIST - nowIST;
+
                     if (timeLeft <= 0) {
                         timerElement.innerHTML = "Poll has ended";
                         clearInterval(timerInterval);
+                        location.reload();
                     } else {
-                        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-                        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        // Calculate remaining time
+                        const totalHours = Math.floor(timeLeft / (1000 * 60 * 60));
                         const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
                         const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
                         
-                        timerElement.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                        // Format time string with leading zeros
+                        const timeString = `${totalHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        timerElement.innerHTML = timeString;
+                        
+                        // Debug log
+                        console.log('Time remaining:', {
+                            hours: totalHours,
+                            minutes,
+                            seconds,
+                            currentTimeIST: nowIST.toLocaleString('en-US', { 
+                                timeZone: 'Asia/Kolkata',
+                                hour12: false 
+                            }),
+                            endTimeIST: endTimeIST.toLocaleString('en-US', { 
+                                timeZone: 'Asia/Kolkata',
+                                hour12: false 
+                            })
+                        });
                     }
                 }
-    
+
                 updateTimer();
                 const timerInterval = setInterval(updateTimer, 1000);
             }
         });
 
-        // Function to convert UTC timestamp to browser's local timezone
+        // Function to convert UTC timestamp to IST with 24-hour format
         function convertToLocalTime(utcDateString) {
-            const utcDate = new Date(utcDateString);
-            return utcDate.toLocaleString(); // Converts to browser's local timezone
+            const date = new Date(utcDateString);
+            return date.toLocaleString('en-US', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
         }
 
         document.addEventListener("DOMContentLoaded", function () {

@@ -131,58 +131,58 @@
 
 <script>
 // Initialize Quill
-var quill = new Quill('#editor', {
-    theme: 'snow',
-    modules: {
-        toolbar: {
-            container: [
-                [{ 'header': [1, 2, false] }],
-                ['bold', 'italic', 'underline'],
-                ['image', 'code-block']
-            ],
-            handlers: {
-                'image': imageHandler
+    var quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    ['image', 'code-block']
+                ],
+                handlers: {
+                    'image': imageHandler
+                }
             }
-        }
-    },
-    placeholder: 'Share your thoughts or ask a question...'
-});
+        },
+        placeholder: 'Share your thoughts or ask a question...'
+    });
 
 // Add form validation before HTMX request
 document.querySelector('form').addEventListener('htmx:validation:validate', function(evt) {
-    const postType = document.querySelector('input[name="post_type"]:checked').value;
+        const postType = document.querySelector('input[name="post_type"]:checked').value;
     const title = document.getElementById('id_title').value.trim();
     const content = quill.root.innerHTML;
-
-    if (postType === 'poll') {
-        if (!title) {
+    
+        if (postType === 'poll') {
+            if (!title) {
             evt.preventDefault();
             showAlert('Please provide a question for your poll.', 'danger');
             return;
-        }
+            }
 
-        const pollEndTime = document.querySelector('input[name="poll_end_time"]').value;
-        if (!pollEndTime) {
+                const pollEndTime = document.querySelector('input[name="poll_end_time"]').value;
+                if (!pollEndTime) {
             evt.preventDefault();
             showAlert('Please set when the poll should end.', 'danger');
             return;
-        }
+                }
 
-        if (new Date(pollEndTime) <= new Date()) {
+                if (new Date(pollEndTime) <= new Date()) {
             evt.preventDefault();
             showAlert('Poll end time must be in the future.', 'danger');
             return;
-        }
+                }
 
-        const options = document.querySelectorAll('input[name="poll_options[]"]');
-        const validOptions = Array.from(options).filter(option => option.value.trim() !== '');
-        if (validOptions.length < 2) {
+                const options = document.querySelectorAll('input[name="poll_options[]"]');
+                const validOptions = Array.from(options).filter(option => option.value.trim() !== '');
+                if (validOptions.length < 2) {
             evt.preventDefault();
             showAlert('Please provide at least two options for your poll.', 'danger');
             return;
-        }
-    } else {
-        if (postType === 'question' && !title) {
+                }
+            } else {
+            if (postType === 'question' && !title) {
             evt.preventDefault();
             showAlert('Please provide a title for your question.', 'danger');
             return;
@@ -230,52 +230,52 @@ document.querySelectorAll('input[name="post_type"]').forEach(radio => {
         titleInput.placeholder = `Enter your ${titleLabels[this.value].toLowerCase()}`;
 
         // Show/hide appropriate sections
-        if (this.value === 'poll') {
-            pollContainer.style.display = 'block';
-            editor.style.display = 'none';
+            if (this.value === 'poll') {
+                pollContainer.style.display = 'block';
+                editor.style.display = 'none';
             quillToolbar.style.display = 'none';
-        } else {
-            pollContainer.style.display = 'none';
-            editor.style.display = 'block';
+            } else {
+                pollContainer.style.display = 'none';
+                editor.style.display = 'block';
             quillToolbar.style.display = 'block';
-        }
-    });
-});
-
-// Add/remove poll options
-document.getElementById('add-option').addEventListener('click', function() {
-    const optionsContainer = document.getElementById('poll-options');
-    const newOption = document.createElement('div');
-    const optionCount = optionsContainer.children.length + 1;
-    
-    newOption.className = 'poll-option mb-2 d-flex gap-2';
-    newOption.innerHTML = `
-        <input type="text" name="poll_options[]" class="form-control" placeholder="Option ${optionCount}" required>
-        <button type="button" class="btn btn-outline-danger remove-option">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-            </svg>
-        </button>
-    `;
-    
-    optionsContainer.appendChild(newOption);
-    updateRemoveButtons();
-});
-
-function updateRemoveButtons() {
-    const options = document.querySelectorAll('.poll-option');
-    options.forEach(option => {
-        const removeBtn = option.querySelector('.remove-option');
-        removeBtn.style.display = options.length > 2 ? 'block' : 'none';
-        
-        removeBtn.onclick = function() {
-            if (options.length > 2) {
-                option.remove();
-                updateRemoveButtons();
             }
-        };
+        });
     });
-}
+
+    // Add/remove poll options
+    document.getElementById('add-option').addEventListener('click', function() {
+        const optionsContainer = document.getElementById('poll-options');
+        const newOption = document.createElement('div');
+        const optionCount = optionsContainer.children.length + 1;
+        
+        newOption.className = 'poll-option mb-2 d-flex gap-2';
+        newOption.innerHTML = `
+            <input type="text" name="poll_options[]" class="form-control" placeholder="Option ${optionCount}" required>
+            <button type="button" class="btn btn-outline-danger remove-option">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                </svg>
+            </button>
+        `;
+        
+        optionsContainer.appendChild(newOption);
+        updateRemoveButtons();
+    });
+
+    function updateRemoveButtons() {
+        const options = document.querySelectorAll('.poll-option');
+        options.forEach(option => {
+            const removeBtn = option.querySelector('.remove-option');
+            removeBtn.style.display = options.length > 2 ? 'block' : 'none';
+            
+            removeBtn.onclick = function() {
+                if (options.length > 2) {
+                    option.remove();
+                    updateRemoveButtons();
+                }
+            };
+        });
+    }
 
 function clearForm() {
     quill.root.innerHTML = '';
