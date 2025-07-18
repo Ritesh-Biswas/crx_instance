@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import UserProfileListView, UserProfileDetailView, WorkAnniversariesView, RecentHiresView, OrgChartView, WorkdayAdminPunchView, follow_toggle, department_follow_toggle
+from . import views
 
 app_name = 'custom_user'
 
@@ -12,4 +13,7 @@ urlpatterns = [
     path("workday/punch/", WorkdayAdminPunchView.as_view(), name="workday-punch"),
     path('follow-toggle/<str:username>/', follow_toggle, name='follow_toggle'),
     path('follow-department-toggle/<slug:slug>/', department_follow_toggle, name='department_follow_toggle'),
+    path('followers-list/<str:username>/', views.followers_list, name='followers-list'),
+    path('following-list/<str:username>/', views.following_list, name='following-list'),
+    path('follow-toggle/<str:username>/', views.follow_toggle, name='follow-toggle'),
 ]

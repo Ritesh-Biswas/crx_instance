@@ -1,0 +1,20 @@
+{% load static %}
+
+{% if followers_list %}
+    <ul class="list-group">
+        {% for follower in followers_list %}
+            <li class="list-group-item d-flex align-items-center">
+                <img src="{% if follower.user and follower.user.wagtail_userprofile and follower.user.wagtail_userprofile.avatar %}{{ follower.user.wagtail_userprofile.avatar.url }}{% else %}{% static 'img/default.png' %}{% endif %}" 
+                     class="rounded-circle me-3" 
+                     width="40" 
+                     height="40">
+                <a href="{% url 'custom_user:profile-detail' follower.user.username %}"
+                   class="text-decoration-none">
+                    {{ follower.user.get_full_name|default:follower.user.username }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="text-muted text-center">No followers yet.</p>
+{% endif %} 

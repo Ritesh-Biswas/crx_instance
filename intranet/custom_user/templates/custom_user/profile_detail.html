@@ -5,9 +5,28 @@
     {{ block.super }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add CSRF token to all HTMX requests
+            document.body.addEventListener('htmx:configRequest', function(evt) {
+                evt.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+            });
+
+            htmx.on('htmx:error', function(evt) {
+                console.error('HTMX Error:', evt.detail);
+                console.error('Error details:', evt.detail.error);
+                console.error('Error status:', evt.detail.xhr ? evt.detail.xhr.status : 'No XHR');
+                console.error('Error response:', evt.detail.xhr ? evt.detail.xhr.responseText : 'No response');
+            });
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
+<!-- Add CSRF token meta tag -->
+{% csrf_token %}
+
 <div class="container py-5">
     <!-- Breadcrumb -->
     <div class="row mb-4">
@@ -40,27 +59,38 @@
             <div class="profile-body">
                 <div class="profile-details">
                     <h3>{{full_name}}</h3>
-                    <div class="d-flex align-items-center justify-content-center mt-3 my-2">
-                        <div class="text-center mx-2">
+                    <div id="follow-counts-container" class="d-flex align-items-center justify-content-center mt-3 my-2">
+                        <div class="text-center mx-2" id="followers-section">
                             <h5 class="mb-0 fw-bold me-2">
-                                <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#followersModal">
+                                <a href="#" class="text-decoration-none" 
+                                   hx-get="{% url 'custom_user:followers-list' username %}"
+                                   hx-target="#followersModalContent"
+                                   hx-trigger="click"
+                                   data-bs-toggle="modal" 
+                                   data-bs-target="#followersModal">
                                     {{ follower_count }}
                                 </a>
                             </h5>
                             <small class="text-muted fw-bold">Followers</small>
                         </div>
-                        <div class="text-center mx-2">
+                        <div class="text-center mx-2" id="following-section">
                             <h5 class="mb-0 fw-bold">
-                                <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#followingModal">
+                                <a href="#" class="text-decoration-none"
+                                   hx-get="{% url 'custom_user:following-list' username %}"
+                                   hx-target="#followingModalContent"
+                                   hx-trigger="click"
+                                   data-bs-toggle="modal" 
+                                   data-bs-target="#followingModal">
                                     {{ following_count }}
                                 </a>
                             </h5>
                             <small class="text-muted fw-bold">Following</small>
                         </div>
                         <div class="follow-info my-2 text-center mx-2">
-                            <button class="btn btn-outline-primary" id="follow-btn"
-                                data-username="{{ username }}"
-                                data-following="{{ is_following|yesno:'true,false' }}">
+                            <button class="btn btn-outline-primary"
+                                    hx-post="{% url 'custom_user:follow-toggle' username %}"
+                                    hx-target="#follow-counts-container"
+                                    hx-swap="outerHTML">
                                 {% if is_following %}Unfollow{% else %}Follow{% endif %}
                             </button>
                         </div>
@@ -153,58 +183,32 @@
 <!-- Followers Modal -->
 <div class="modal fade" id="followersModal" tabindex="-1" aria-labelledby="followersModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content" style="max-height: 90vh; overflow: hidden;">
-        <div class="modal-header">
-          <h5 class="modal-title" id="followersModalLabel">Followers</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content" style="max-height: 90vh; overflow: hidden;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="followersModalLabel">Followers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto;" id="followersModalContent">
+                <!-- Content will be loaded here by HTMX -->
+            </div>
         </div>
-        <div class="modal-body" style="overflow-y: auto;">
-          {% if followers_list %}
-            <ul class="list-group">
-              {% for follower in followers_list %}
-                <li class="list-group-item d-flex align-items-center">
-                  <img src="{% if follower.user and follower.user.wagtail_userprofile and follower.user.wagtail_userprofile.avatar %}{{ follower.user.wagtail_userprofile.avatar.url }}{% else %}{% static 'img/default.png' %}{% endif %}" class="rounded-circle me-3" width="40" height="40">
-                  <a href="{% url 'custom_user:profile-detail' follower.user.username %}">
-                    {{ follower.user.get_full_name|default:follower.user.username }}
-                  </a>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="text-muted text-center">No followers yet.</p>
-          {% endif %}
-        </div>
-      </div>
     </div>
-  </div>
-  
-  <!-- Following Modal -->
-  <div class="modal fade" id="followingModal" tabindex="-1" aria-labelledby="followingModalLabel" aria-hidden="true">
+</div>
+
+<!-- Following Modal -->
+<div class="modal fade" id="followingModal" tabindex="-1" aria-labelledby="followingModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content" style="max-height: 90vh; overflow: hidden;">
-        <div class="modal-header">
-          <h5 class="modal-title" id="followingModalLabel">Following</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content" style="max-height: 90vh; overflow: hidden;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="followingModalLabel">Following</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto;" id="followingModalContent">
+                <!-- Content will be loaded here by HTMX -->
+            </div>
         </div>
-        <div class="modal-body" style="overflow-y: auto;">
-          {% if following_list %}
-            <ul class="list-group">
-              {% for following in following_list %}
-                <li class="list-group-item d-flex align-items-center">
-                  <img src="{% if following.user and following.user.wagtail_userprofile and following.user.wagtail_userprofile.avatar %}{{ following.user.wagtail_userprofile.avatar.url }}{% else %}{% static 'img/default.png' %}{% endif %}" class="rounded-circle me-3" width="40" height="40">
-                  <a href="{% url 'custom_user:profile-detail' following.user.username %}">
-                    {{ following.user.get_full_name|default:following.user.username }}
-                  </a>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="text-muted text-center">Not following anyone yet.</p>
-          {% endif %}
-        </div>
-      </div>
     </div>
-  </div>
+</div>
 </div>
   
 {% endblock %}

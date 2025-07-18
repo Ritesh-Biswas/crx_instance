@@ -1,0 +1,39 @@
+{% load static %}
+{% csrf_token %}
+
+<div id="follow-counts-container" class="d-flex align-items-center justify-content-center mt-3 my-2">
+    <div class="text-center mx-2" id="followers-section">
+        <h5 class="mb-0 fw-bold me-2">
+            <a href="#" class="text-decoration-none" 
+               hx-get="{% url 'custom_user:followers-list' username %}"
+               hx-target="#followersModalContent"
+               hx-trigger="click"
+               data-bs-toggle="modal" 
+               data-bs-target="#followersModal">
+                {{ follower_count }}
+            </a>
+        </h5>
+        <small class="text-muted fw-bold">Followers</small>
+    </div>
+    <div class="text-center mx-2" id="following-section">
+        <h5 class="mb-0 fw-bold">
+            <a href="#" class="text-decoration-none"
+               hx-get="{% url 'custom_user:following-list' username %}"
+               hx-target="#followingModalContent"
+               hx-trigger="click"
+               data-bs-toggle="modal" 
+               data-bs-target="#followingModal">
+                {{ following_count }}
+            </a>
+        </h5>
+        <small class="text-muted fw-bold">Following</small>
+    </div>
+    <div class="follow-info my-2 text-center mx-2">
+        <button class="btn btn-outline-primary"
+                hx-post="{% url 'custom_user:follow-toggle' username %}"
+                hx-target="#follow-counts-container"
+                hx-swap="outerHTML">
+            {% if is_following %}Unfollow{% else %}Follow{% endif %}
+        </button>
+    </div>
+</div> 

@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from .models import UserExtraProfile, User
 from home.models import SubDepartmentPage
 from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.http import require_POST
 
 class UserProfileListView(View):
     def get(self, request):
@@ -268,3 +269,53 @@ def department_follow_toggle(request, slug):
             return JsonResponse({"status": "followed"})
 
     return HttpResponseBadRequest("Invalid request")
+
+@login_required
+def followers_list(request, username):
+    user = get_object_or_404(User, username=username)
+    followers_list = user.userextraprofile.user_followers.all()
+    return render(request, 'custom_user/partials/followers_list.html', {
+        'followers_list': followers_list
+    })
+
+@login_required
+def following_list(request, username):
+    user = get_object_or_404(User, username=username)
+    following_list = user.userextraprofile.following_users.all()
+    return render(request, 'custom_user/partials/following_list.html', {
+        'following_list': following_list
+    })
+
+@login_required
+@require_POST
+def follow_toggle(request, username):
+    user_to_follow = get_object_or_404(User, username=username)
+    current_user = request.user
+    
+    if current_user == user_to_follow:
+        print("Error: User trying to follow themselves")
+        return JsonResponse({'error': 'Cannot follow yourself'}, status=400)
+    
+    # Get or create profiles
+    current_user_profile = current_user.userextraprofile
+    user_to_follow_profile = user_to_follow.userextraprofile
+    
+    if current_user_profile.is_following_user(user_to_follow_profile):
+        current_user_profile.unfollow_user(user_to_follow_profile)
+        status = 'unfollowed'
+    else:
+        current_user_profile.follow_user(user_to_follow_profile)
+        status = 'followed'
+    
+    # Count followers and following
+    follower_count = user_to_follow.userextraprofile.user_followers.count()
+    following_count = user_to_follow.userextraprofile.following_users.count()
+    
+    response = render(request, 'custom_user/partials/follow_counts.html', {
+        'username': username,
+        'follower_count': follower_count,
+        'following_count': following_count,
+        'is_following': current_user_profile.is_following_user(user_to_follow_profile)
+    })
+    
+    return response
