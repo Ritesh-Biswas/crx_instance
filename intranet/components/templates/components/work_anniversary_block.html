@@ -1,0 +1,165 @@
+{% load static %}
+
+<div class="card mt-2">
+    <div class="card-header bg-white">
+        <h5 class="card-title fw-bold mb-0">{{ title }}</h5>
+    </div>
+    <div class="card-body position-relative">
+        <!-- Navigation Arrows -->
+        <button class="nav-arrow nav-prev" onclick="scrollWorkAnniversaries(this, -1)">❮</button>
+        <button class="nav-arrow nav-next" onclick="scrollWorkAnniversaries(this, 1)">❯</button>
+        
+        <!-- Wrap both count card and anniversaries in scrollable container -->
+        <div class="scrollable-container">
+            <div class="d-flex">
+                <!-- Anniversaries Count -->
+                <div class="card card-container bg-primary text-white text-center flex-shrink-0 mx-2">
+                    <div class="card-body d-flex flex-column justify-content-between h-100">
+                        <div class="anniversary-count-section">
+                            <h2 id="anniversary-count" class="display-5 fw-bold mb-2">0</h2>
+                            <p class="mb-0">Work</p>
+                            <p class="small">Anniversaries</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anniversaries Container -->
+                <div id="work-anniversaries-container" class="d-flex"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/custom_user/api/work-anniversaries/')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('work-anniversaries-container');
+            const countBox = document.getElementById('anniversary-count');
+            container.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                countBox.innerText = '0';
+                container.innerHTML = '<p class="text-muted">No work anniversaries this month</p>';
+                return;
+            }
+
+            countBox.innerText = data.length;
+
+            data.forEach(employee => {
+                const card = document.createElement('div');
+                card.className = 'card card-container mx-2';
+                
+                const anniversaryDate = new Date(employee.anniversary_date);
+                const today = new Date();
+                const daysUntil = Math.ceil((anniversaryDate - today) / (1000 * 60 * 60 * 24));
+                const dateText = daysUntil === 0 ? 'Today' : 
+                               daysUntil === 1 ? 'Tomorrow' : 
+                               `In ${daysUntil} days`;
+                
+                card.innerHTML = `
+                    <div class="card-body d-flex flex-column justify-content-between h-100 text-center">
+                        <div>
+                            <img src="${employee.profile_picture || '/static/img/default.png'}" 
+                                 class="rounded-circle mb-2" 
+                                 width="64" height="64" 
+                                 alt="Profile photo">
+                            <h6 class="fw-bold mb-1">
+                                <a href="/custom_user/api/profiles/${employee.username}/" class="text-decoration-none text-dark">
+                                   ${employee.full_name?.trim() || employee.username}
+                                </a>
+                            </h6>
+                            <p class="small text-muted mb-1">WORK ANNIVERSARY</p>
+                            <p class="small text-muted mb-1">${employee.years_of_service} Year${employee.years_of_service !== 1 ? 's' : ''}</p>
+                            <p class="small text-muted mb-0">${dateText}</p>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching work anniversaries:', error);
+            document.getElementById('work-anniversaries-container').innerHTML = 
+                '<p class="text-center text-danger my-3">Error loading anniversaries</p>';
+        });
+});
+
+function scrollWorkAnniversaries(button, direction) {
+    // Find the closest scrollable container relative to the clicked button
+    const container = button.closest('.card-body').querySelector('.scrollable-container');
+    const scrollAmount = 220; // card width + gap
+    container.scrollBy({
+        left: direction * scrollAmount,
+        behavior: 'smooth'
+    });
+}
+</script>
+
+<style>
+    .scrollable-container {
+        overflow-x: hidden;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.5rem;
+        margin: 0 -0.5rem;
+    }
+
+    .scrollable-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .card-container {
+        min-width: 200px;
+        width: 200px;
+        height: 220px;
+        border: 1px solid rgba(0,0,0,.125);
+        flex: 0 0 auto;
+    }
+
+    .card-container.bg-primary {
+        border: none;
+        background-color: #4a6cf7 !important;
+    }
+
+    #work-anniversaries-container {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .anniversary-count-section {
+        padding: 10px 0;
+    }
+
+    .nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1;
+        transition: all 0.2s;
+    }
+
+    .nav-arrow:hover {
+        background: rgba(255, 255, 255, 1);
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .nav-prev {
+        left: 0;
+    }
+
+    .nav-next {
+        right: 0;
+    }
+</style>

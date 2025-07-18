@@ -1,0 +1,165 @@
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="card-title fw-bold mb-0">Welcome To The Team</h5>
+    </div>
+    <div class="card-body position-relative">
+        <!-- Navigation Arrows -->
+        <button class="nav-arrow nav-prev" onclick="scrollRecentHires(this, -1)">❮</button>
+        <button class="nav-arrow nav-next" onclick="scrollRecentHires(this, 1)">❯</button>
+        
+        <!-- Wrap both count card and profiles in scrollable container -->
+        <div class="scrollable-container">
+            <div class="d-flex">
+                <!-- New Hires Count -->
+                <div class="card card-container bg-primary text-white text-center flex-shrink-0 mx-2">
+                    <div class="card-body d-flex flex-column justify-content-between h-100">
+                        <div class="hire-count-section">
+                            <h2 id="hire-count" class="display-5 fw-bold mb-2">0</h2>
+                            <p class="mb-0">New hires</p>
+                            <p class="small">in last 30 days</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profiles Container -->
+                <div id="recent-hires-container" class="d-flex"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    fetch("{{ api_url }}", { headers: { "Accept": "application/json" } })
+    .then(response => response.json())
+    .then(data => {
+        //console.log('Fetched profiles:', data);
+        if (!data || !data.profiles) {
+            console.error('No profiles found in the response.');
+            return;
+        }
+
+        const profiles = data.profiles || [];
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+
+        const recentHires = profiles.filter(profile => {
+            if (profile.joining_date) {
+                const joiningDate = new Date(profile.joining_date);
+                return joiningDate >= thirtyDaysAgo;
+            }
+            return false;
+        });
+
+        // Sort recentHires by joining_date (latest to oldest)
+        recentHires.sort((a, b) => new Date(b.joining_date) - new Date(a.joining_date));
+
+        // Update new hire count
+        document.getElementById('hire-count').innerText = recentHires.length;
+
+        const container = document.getElementById('recent-hires-container');
+        if (recentHires.length === 0) {
+            container.innerHTML = '<p class="text-muted mt-5 pt-5">No recent hires in the last 30 days.</p>';
+            return;
+        }
+
+        // Generate profile cards
+        recentHires.forEach(profile => {
+            const card = document.createElement('div');
+            card.className = 'card card-container';
+            
+            card.innerHTML = `
+                <div class="card-body d-flex flex-column justify-content-between h-100 text-center">
+                    <div>
+                        <img src="${profile.profile_picture || '/static/img/default.png'}" class="rounded-circle mb-2" width="64" height="64" alt="Profile photo">
+                        <h6 class="fw-bold mb-1">
+                            <a href="/custom_user/api/profiles/${profile.username}/" class="text-decoration-none text-dark">
+                                ${profile.full_name?.trim() || profile.username}
+                            </a>
+                        </h6>
+                        <p class="small text-muted mb-3">${profile.designation}</p>
+                        <p class="small text-muted mb-0">Joined: ${profile.joining_date}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(card);
+        });
+    })
+    .catch(error => console.error('Error fetching profiles:', error));
+    function scrollRecentHires(button, direction) {
+        // Find the closest scrollable container relative to the clicked button
+        const container = button.closest('.card-body').querySelector('.scrollable-container');
+        const scrollAmount = 220; // card width + gap
+        container.scrollBy({
+            left: direction * scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+</script>
+
+<style>
+    .scrollable-container {
+        overflow-x: hidden;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.5rem;
+        margin: 0 -0.5rem;
+    }
+
+    /* Remove scrollbar styles */
+    .scrollable-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .card-container {
+        min-width: 200px;
+        width: 200px;
+        height: 220px;
+        border: 1px solid rgba(0,0,0,.125);
+        flex: 0 0 auto;
+    }
+
+    .card-container.bg-primary {
+        border: none;
+    }
+
+    #recent-hires-container {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .hire-count-section {
+        padding: 10px 0;
+    }
+
+    .nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1;
+        transition: all 0.2s;
+    }
+
+    .nav-arrow:hover {
+        background: rgba(255, 255, 255, 1);
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .nav-prev {
+        left: 0;
+    }
+
+    .nav-next {
+        right: 0;
+    }
+</style>

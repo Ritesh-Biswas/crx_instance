@@ -1,0 +1,209 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailadmin_tags %}
+
+{% block titletag %}Blog Statistics{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+    <h1>Blog Post Statistics</h1>
+    
+    <div class="stats-overview">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="stat-card">
+                    <h3>Recent Activity (Last 7 Days)</h3>
+                    <ul class="stats-list">
+                        <li><strong>New Posts:</strong> {{ recent_posts }}</li>
+                        <li><strong>New Likes:</strong> {{ recent_likes }}</li>
+                        <li><strong>New Comments:</strong> {{ recent_comments }}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-card">
+                    <h3>Monthly Activity</h3>
+                    <ul class="stats-list">
+                        <li><strong>Posts:</strong> {{ monthly_posts }}</li>
+                        <li><strong>Likes:</strong> {{ monthly_likes }}</li>
+                        <li><strong>Comments:</strong> {{ monthly_comments }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="stat-card">
+                    <h3>Poll Statistics</h3>
+                    <ul class="stats-list">
+                        <li><strong>Total Votes:</strong> {{ total_votes }}</li>
+                        <li><strong>Active Polls:</strong> {{ active_polls }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="top-posts">
+        <h2>Top Performing Posts</h2>
+        <table class="listing">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Department</th>
+                    <th>Likes</th>
+                    <th>Comments</th>
+                    <th>Engagement Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in page_obj %}
+                <tr>
+                    <td>{{ post.title }}</td>
+                    <td>{{ post.post_type }}</td>
+                    <td>{{ post.get_stats.department }}</td>
+                    <td>{{ post.likes.count }}</td>
+                    <td>{{ post.get_comments.count }}</td>
+                    <td>{{ post.engagement_score }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination">
+            <span class="step-links">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1">&laquo; first</a>
+                    <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                {% endif %}
+
+                <span class="current">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}">next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="post-types">
+        <h2>Post Type Distribution</h2>
+        <ul>
+            {% for type in post_types %}
+            <li>{{ type.post_type }}: {{ type.count }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+
+    <div class="comment-section">
+    <h2>Comments</h2>
+    <div class="comment-actions">
+    
+        <a href="/myadmin/comment/comment/" target="_blank" rel="noopener noreferrer" class="comment-btn-link">
+         <button class="comment-btn">Comments</button>
+        </a>
+        <a href="/myadmin/comment/flag/" target="_blank" rel="noopener noreferrer" class="comment-btn-link">
+         <button class="comment-btn">Flags</button>
+        </a>
+        <a href="/myadmin/comment/reaction/" target="_blank" rel="noopener noreferrer" class="comment-btn-link">
+         <button class="comment-btn">Reaction</button>
+        </a>
+        <a href="/myadmin/comment/blockeduser/" target="_blank" rel="noopener noreferrer" class="comment-btn-link">
+         <button class="comment-btn">Blocked User</button>
+        </a>
+        <a href="/myadmin/comment/blockeduserhistory/" target="_blank" rel="noopener noreferrer" class="comment-btn-link">
+         <button class="comment-btn">Blocked User History</button>
+        </a>
+    </div>
+</div>
+
+<style>
+    .stats-overview {
+        margin-bottom: 2em;
+    }
+    .stat-card {
+        background: #000000;
+        padding: 1.5em;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: 100%;
+    }
+    .stats-list {
+        list-style: none;
+        padding: 0;
+    }
+    .stats-list li {
+        margin-bottom: 0.5em;
+        padding: 0.5em;
+        border-bottom: 1px solid #eee;
+    }
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: -0.5rem;
+    }
+    .col-md-6 {
+        flex: 0 0 50%;
+        padding: 0.5rem;
+    }
+    .mt-4 {
+        margin-top: 2rem;
+    }
+    .top-posts {
+        margin-bottom: 2em;
+    }
+    .post-types {
+        margin-bottom: 2em;
+    }
+    .pagination {
+            margin-top: 1em;
+            text-align: center;
+        }
+        .pagination a {
+            margin: 0 0.5em;
+            padding: 0.5em 1em;
+            background: #43b1b0;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+        }
+        .pagination .current {
+            margin: 0 1em;
+            padding: 0.5em 1em;
+            background:rgb(7, 7, 7);
+            border-radius: 3px;
+        }
+
+        .comment-section {
+    margin-top: 2em;
+    }
+.comment-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 1em;
+}
+.comment-btn {
+    padding: 0.5em 1em;
+    background: #43b1b0;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.comment-btn:hover {
+    background: #2c7c7b;
+}
+.comment-container {
+    min-height: 100px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1em;
+    background: white;
+}
+</style>
+{% endblock %}

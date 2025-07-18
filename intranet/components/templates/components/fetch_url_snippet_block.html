@@ -1,0 +1,116 @@
+{% load wagtailcore_tags %}
+
+<div class="container bg-white rounded border p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold  mb-0">Fetched Data from API</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div style="max-height: 400px; overflow-y: auto; overflow-x: auto;" class="scrollable-table">
+        <table class="table table-striped table-hover mb-0">
+          <thead class="bg-primary text-white sticky-top" id="table-head">
+            <!-- Dynamic table headers will be inserted here -->
+          </thead>
+          <tbody id="data-table" class="border-top-0">
+            <!-- Dynamic table rows will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer bg-light">
+      <div class="d-flex justify-content-between align-items-center">
+        <button id="prev-page" class="btn btn-outline-primary" disabled>
+          <i class="bi bi-chevron-left"></i> Previous
+        </button>
+        <span id="page-info" class="badge bg-primary rounded-pill px-3 py-2"></span>
+        <button id="next-page" class="btn btn-outline-primary">
+          Next <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    let apiUrl = "{{ value.fetch_url.fetch_data_url }}";
+    let currentPage = 1;
+    const itemsPerPage = 5;
+
+    function fetchAndRenderData(page) {
+      if (apiUrl) {
+        // Show loading indicator
+        document.getElementById("data-table").innerHTML = '<tr><td colspan="100%" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+        
+        fetch(apiUrl)
+          .then(response => response.json())
+          .then(data => {
+            if (!Array.isArray(data) || data.length === 0) {
+              document.getElementById("data-table").innerHTML = '<tr><td colspan="100%" class="text-center py-4">No data available</td></tr>';
+              return;
+            }
+
+            // Generate headers
+            const tableHead = document.getElementById("table-head");
+            tableHead.innerHTML = "";
+            let headers = Object.keys(data[0]);
+
+            if (headers.includes("id")) {
+              headers = ["id", ...headers.filter(h => h !== "id")];
+            }
+
+            let headerRow = "<tr>";
+            headers.forEach(header => {
+              headerRow += `<th class="text-nowrap">${header.toUpperCase()}</th>`;
+            });
+            headerRow += "</tr>";
+            tableHead.innerHTML = headerRow;
+
+            // Paginated data
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginatedData = data.slice(start, end);
+
+            const tableBody = document.getElementById("data-table");
+            tableBody.innerHTML = "";
+
+            paginatedData.forEach(item => {
+              let row = "<tr>";
+              headers.forEach(header => {
+                const cellValue = item[header] !== undefined ? item[header] : "";
+                row += `<td class="align-middle">${cellValue}</td>`;
+              });
+              row += "</tr>";
+              tableBody.innerHTML += row;
+            });
+
+            document.getElementById("prev-page").disabled = page === 1;
+            document.getElementById("next-page").disabled = end >= data.length;
+            document.getElementById("page-info").textContent = `Page ${page} of ${Math.ceil(data.length / itemsPerPage)}`;
+          })
+          .catch(error => {
+            console.error("Error fetching data:", error);
+            document.getElementById("data-table").innerHTML = '<tr><td colspan="100%" class="text-center py-4 text-danger">Error loading data</td></tr>';
+          });
+      } else {
+        console.error("API URL is missing!");
+        document.getElementById("data-table").innerHTML = '<tr><td colspan="100%" class="text-center py-4 text-danger">API URL is missing</td></tr>';
+      }
+    }
+
+    document.getElementById("prev-page").addEventListener("click", function() {
+      if (currentPage > 1) {
+        currentPage--;
+        fetchAndRenderData(currentPage);
+      }
+    });
+
+    document.getElementById("next-page").addEventListener("click", function() {
+      currentPage++;
+      fetchAndRenderData(currentPage);
+    });
+
+    fetchAndRenderData(currentPage);
+  });
+</script>

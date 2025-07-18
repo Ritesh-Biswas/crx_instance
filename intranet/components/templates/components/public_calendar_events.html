@@ -1,0 +1,264 @@
+<!-- filepath: e:\Intranet Prototypes\prototypes\codered_integration\intranet\components\templates\components\public_calendar_events.html -->
+{% load wagtailcore_tags static %}
+<div class="container bg-white rounded border p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h2 mb-0 fw-bolder">Upcoming Events</h2>
+</div>
+    <div class="text-center border rounded" style="border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 1rem; box-shadow: 0 0 15px rgba(0,0,0,0.05);">
+        <div class="tabs">
+            <div class="tab active" data-type="upcoming">Upcoming</div>
+            <div class="tab" data-type="latest">Latest</div>
+            <div class="tab" data-type="popular">Popular</div>
+        </div>
+        <div class="event-list">
+            <p class="no-events">Nothing to show here</p>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Add CSRF token to all AJAX requests
+        var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+
+        let allEvents = [];
+        
+        function filterEvents(type) {
+            if (!allEvents.length) return [];
+            
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); // Set to start of day for proper comparison
+            
+            switch(type) {
+                case 'upcoming':
+                    return allEvents.filter(event => {
+                        const eventDate = new Date(event.start);
+                        eventDate.setHours(0, 0, 0, 0); // Set to start of day for proper comparison
+                        return eventDate >= now;
+                    }).sort((a, b) => new Date(a.start) - new Date(b.start));
+                case 'latest':
+                    return allEvents.sort((a, b) => new Date(b.start) - new Date(a.start));
+                case 'popular':
+                    return allEvents; // Add your popularity logic here if needed
+                default:
+                    return allEvents;
+            }
+        }
+
+        function formatDate(dateStr) {
+            // Handle various date formats
+            if (!dateStr) return 'N/A';
+            
+            // Try parsing ICS format (YYYYMMDD)
+            if (dateStr.length === 8) {
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                return new Date(year, month - 1, day).toLocaleDateString();
+            }
+            
+            // Try parsing ISO format
+            const date = new Date(dateStr);
+            if (!isNaN(date)) {
+                return date.toLocaleDateString();
+            }
+            
+            return dateStr; // Return original if parsing fails
+        }
+
+        function displayEvents(events) {
+            $('.event-list').empty();
+            if (events.length > 0) {
+                const eventList = $('<div class="events-scroll">');
+                events.forEach((event, index) => {
+                    eventList.append(`
+                         <div class="event-item ${index >= 1 ? 'extra-item' : ''}">
+                            <h4>${event.summary || 'No Title'}</h4>
+                            <p class="event-date">
+                                ${event.start || 'No start'} 
+                                ${event.end ? ' → ' + event.end : ''}
+                            </p>
+                            ${event.type ? `<span class="badge badge-info">${event.type}</span>` : ''}
+                            ${event.location ? `<p class="event-location"><strong>📍</strong> ${event.location}</p>` : ''}
+                            ${event.organizer ? `<p class="event-organizer"><strong>👤</strong> ${event.organizer}</p>` : ''}
+                            <div class="event-description">${event.description || 'No description available'}</div>
+                        </div>
+                    `);
+                });
+                $('.event-list').append(eventList);
+            } else {
+                $('.event-list').html('<p class="no-events">Nothing to show here</p>');
+            }
+        }
+
+        function fetchEvents() {
+            const calendarUrl = '{{ value.public_calendar_events.calendar_public_url }}';
+            $.ajax({
+                url: '/components/public-calendar-events/',
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                data: { calendar_url: calendarUrl },
+                success: function (response) {
+                    allEvents = response.events;
+                    const activeTab = $('.tab.active').data('type');
+                    const filteredEvents = filterEvents(activeTab);
+                    displayEvents(filteredEvents);
+                },
+                error: function (xhr) {
+                    console.error('Error fetching events:', xhr.responseText);
+                    $('.event-list').html('<p class="no-events">Failed to fetch events</p>');
+                }
+            });
+        }
+        
+        $('.tab').click(function () {
+            $('.tab').removeClass('active');
+            $(this).addClass('active');
+            const filteredEvents = filterEvents($(this).data('type'));
+            displayEvents(filteredEvents);
+        });
+        
+        fetchEvents();
+    });
+</script>
+
+<!-- Add CSRF Token -->
+{% csrf_token %}
+
+<style>
+    .event-location,
+    .event-organizer {
+        font-size: 0.85rem;
+        color: #444;
+        margin: 4px 0;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.25em 0.5em;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+        color: #fff;
+        background-color: #0d6efd;
+        border-radius: 0.25rem;
+        margin-top: 4px;
+    }
+
+
+
+    .tabs {
+        display: flex;
+        border-bottom: 2px solid #ddd;
+    }
+    .tab {
+        padding: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        color: gray;
+    }
+    .tab.active {
+        color: black;
+        border-bottom: 2px solid blue;
+    }
+    .event-list {
+    padding: 10px;
+    min-height: 50px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    box-shadow: 0 0 15px rgba(0,0,0,0.05);
+}
+    .events-scroll {
+        max-height: 140px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .events-scroll::-webkit-scrollbar {
+        width: 6px;
+    }
+    .events-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .events-scroll::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    .event-item {
+        padding: 10px;
+        margin-bottom: 8px;
+        border-left: 3px solid #0d6efd;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+    }
+    .event-item:last-child {
+        margin-bottom: 0;
+    }
+    .event-item h4 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    .event-date {
+        margin: 5px 0 0;
+        color: #666;
+        font-size: 0.9rem;
+    }
+    .event-description {
+        margin-top: 8px;
+        color: #495057;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        max-height: 60px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .event-description:after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 40%;
+        height: 1.4em;
+        background: linear-gradient(to right, transparent, #f8f9fa);
+    }
+    
+    .event-item:hover .event-description {
+        max-height: none;
+    }
+    
+    .event-item:hover .event-description:after {
+        display: none;
+    }
+    .no-events {
+        color: gray;
+        text-align: center;
+    }
+    .more-events {
+        text-align: center;
+        padding: 10px;
+        color: #666;
+        font-size: 0.9rem;
+        border-top: 1px solid #dee2e6;
+        margin-top: 8px;
+    }
+    .extra-item {
+        opacity: 0.8;
+    }
+    .extra-item:hover {
+        opacity: 1;
+    }
+</style>

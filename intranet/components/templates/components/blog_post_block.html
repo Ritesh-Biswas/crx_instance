@@ -1,0 +1,568 @@
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% if value.blog_post.add_post %}
+<form method="post" action="{% url 'components:blog_post_create' %}" class="w-100 mb-4" onsubmit="return populateBodyField()" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="card rounded border rounded-lg p-4">
+        <div class="mb-2">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <!-- Post type selector -->
+                <div class=" post-type-selector d-flex gap-3">
+                    <label class="post-type-option">
+                        <input type="radio" name="post_type" value="post" class="visually-hidden" checked>
+                        <div class="option-content d-flex align-items-center gap-2 px-3 py-2">
+                            <div class="icon-container">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </div>
+                            <span class="fw-medium">Post</span>
+                        </div>
+                    </label>
+                    <label class="post-type-option">
+                        <input type="radio" name="post_type" value="question" class="visually-hidden">
+                        <div class="option-content d-flex align-items-center gap-2 px-3 py-2">
+                            <div class="icon-container">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <span class="fw-medium">Question</span>
+                        </div>
+                    </label>
+                    <label class="post-type-option">
+                        <input type="radio" name="post_type" value="poll" class="visually-hidden">
+                        <div class="option-content d-flex align-items-center gap-2 px-3 py-2">
+                            <div class="icon-container">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                            </div>
+                            <span class="fw-medium">Poll</span>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- Department dropdown in the same row -->
+                <div class="select-wrapper flex-grow-1 ms-auto" style="max-width: 280px;">
+                    <select id="subdepartment-dropdown" name="subdepartment" class="form-select">
+                        
+                        <option value="global">Global</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="poll-options-container" class="mb-4" style="display: none;">
+            <div class="poll-end-time mb-3">
+                <label class="form-label text-secondary small mb-1">Poll End Time</label>
+                <input type="datetime-local" 
+                       name="poll_end_time" 
+                       class="form-control" 
+                       data-poll-field
+                       min="{% now 'Y-m-d' %}T00:00">
+            </div>
+            <label class="form-label text-secondary small mb-1">Poll Options</label>
+            <div id="poll-options">
+                <div class="poll-option mb-2 d-flex gap-2">
+                    <input type="text" name="poll_options[]" class="form-control" placeholder="Option 1" data-poll-field>
+                    <button type="button" class="btn btn-outline-danger remove-option" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="poll-option mb-2 d-flex gap-2">
+                    <input type="text" name="poll_options[]" class="form-control" placeholder="Option 2" data-poll-field>
+                    <button type="button" class="btn btn-outline-danger remove-option" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <button type="button" id="add-option" class="btn btn-outline-primary btn-sm mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                </svg>
+                Add Option
+            </button>
+        </div>
+        <textarea id="id_body" name="body" class="d-none"></textarea>
+        <div id="editor" class="text-body w-100 rounded-lg mb-4"></div>
+        
+        <div class="d-flex justify-content-end gap-3 mt-2">
+            <button type="button" id="close_editor" class="btn btn-light rounded-pill px-3">
+                <span>Cancel</span>
+            </button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4">
+                <span>Publish</span>
+            </button>
+        </div>
+    </div>
+</form>
+{% endif %}
+
+<!-- Include Quill.js -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<script>
+
+    var quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    ['image', 'code-block']
+                ],
+                handlers: {
+                    'image': imageHandler
+                }
+            }
+        },
+        placeholder: 'Share your thoughts or ask a question...'
+    });
+
+
+    function imageHandler() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+    
+        input.onchange = () => {
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+    
+            fetch('{% url "components:upload_image" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const range = quill.getSelection();
+                    quill.insertEmbed(range.index, 'image', data.url);
+                } else {
+                    console.error('Upload failed:', data.error);
+                    alert('Failed to upload image');
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading image:', error);
+                alert('Error uploading image');
+            });
+        };
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function populateBodyField() {
+        const postType = document.querySelector('input[name="post_type"]:checked').value;
+        const title = document.getElementById('id_title')?.value.trim();
+    
+        // Validate based on post type
+        if (postType === 'poll') {
+            // Check for poll title
+            if (!title) {
+                alert('Please provide a question for your poll.');
+                return false;
+            }
+
+                    // Validate poll end time
+                const pollEndTime = document.querySelector('input[name="poll_end_time"]').value;
+                
+                if (!pollEndTime) {
+                    alert('Please set when the poll should end.');
+                    return false;
+                }
+
+                // Check if end time is in the future
+                if (new Date(pollEndTime) <= new Date()) {
+                    alert('Poll end time must be in the future.');
+                    return false;
+                }
+
+                // Check for poll options
+                const options = document.querySelectorAll('input[name="poll_options[]"]');
+                const validOptions = Array.from(options).filter(option => option.value.trim() !== '');
+                
+                if (validOptions.length < 2) {
+                    alert('Please provide at least two options for your poll.');
+                    return false;
+                }
+
+                return true;
+            } else {
+            // For posts and questions
+            const content = quill.root.innerHTML;
+            if (content.trim() === '<p><br></p>' || content.trim() === '') {
+                alert('Please add some content before publishing.');
+                return false;
+            }
+    
+            // Additional validation for questions
+            if (postType === 'question' && !title) {
+                alert('Please provide a title for your question.');
+                return false;
+            }
+    
+            document.getElementById('id_body').value = content;
+            return true;
+        }
+    }
+
+    document.getElementById('close_editor').addEventListener('click', function() {
+        quill.root.innerHTML = '';
+    });
+
+    // Fetch and populate subdepartments
+    document.addEventListener('DOMContentLoaded', function() {
+        const subdepartmentDropdown = document.getElementById('subdepartment-dropdown');
+        const currentPageId = '{{ page.id }}';
+        const isSubdepartmentPage = {{ page.specific.is_subdepartment_page|yesno:"true,false" }};
+        //console.log('Current page:', '{{ page.id }}');
+        //console.log('Is subdepartment:', '{{ page.specific.is_subdepartment_page|yesno:"true,false" }}');
+        
+        let url = '/components/subdepartments/';
+        if (isSubdepartmentPage) {
+            url += `?page_id=${currentPageId}`;
+        }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                //console.log('Fetched subdepartments:', data);
+                // Clear existing options except Global
+                while (subdepartmentDropdown.options.length > 1) {
+                    subdepartmentDropdown.remove(1);
+                }
+                
+                data.subdepartments.forEach(subdept => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = subdept.id;
+                    optionElement.textContent = subdept.name;
+                    if (isSubdepartmentPage && subdept.id === parseInt(currentPageId)) {
+                        optionElement.selected = true;
+                        // Hide the Global option if on subdepartment page
+                        subdepartmentDropdown.querySelector('option[value="global"]').style.display = 'none';
+                    }
+                    subdepartmentDropdown.appendChild(optionElement);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching subdepartments:', error);
+            });
+
+        // Get the default selected radio (post)
+        const defaultPostType = document.querySelector('input[name="post_type"]:checked').value;
+        
+        // Define title labels
+        const titleLabels = {
+            'post': 'Post Title',
+            'question': 'Question Title',
+            'poll': 'Poll Question'
+        };
+        
+        // Create initial title field
+        const titleDiv = document.createElement('div');
+        titleDiv.id = 'title-field';
+        titleDiv.className = 'w-100 mb-3';
+        titleDiv.innerHTML = `
+            <label for="id_title" class="form-label text-secondary small mb-1">${titleLabels[defaultPostType]}</label>
+            <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your ${titleLabels[defaultPostType].toLowerCase()}" required>
+        `;
+        
+        // Insert after the post type selector
+        document.querySelector('.d-flex.flex-wrap.align-items-center.gap-3').insertAdjacentElement('afterend', titleDiv);
+    });
+
+    // Replace the existing post type change event listener with this new one
+    document.querySelectorAll('input[name="post_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const dropdownContainer = document.querySelector('.d-flex.flex-wrap.align-items-center.gap-3');
+            const existingTitleField = document.getElementById('title-field');
+            const editor = document.getElementById('editor');
+            const quillToolbar = document.querySelector('.ql-toolbar');
+            
+            
+            // Remove existing title field if it exists
+            if (existingTitleField) {
+                existingTitleField.remove();
+            }
+            
+            if (this.value === 'question') {
+                // Create title field dynamically
+                const titleField = document.createElement('div');
+                titleField.id = 'title-field';
+                titleField.className = 'w-100 mb-3';
+                
+                titleField.innerHTML = `
+                    <label for="id_title" class="form-label text-secondary small mb-1">Question Title</label>
+                    <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your question title" required>
+                `;
+                
+                // Insert after the post type selector
+                dropdownContainer.insertAdjacentElement('afterend', titleField);
+            }
+
+            if (this.value === 'poll') {
+                if (editor) editor.style.display = 'none';
+                if (quillToolbar) quillToolbar.style.display = 'none';
+            } else {
+                if (editor) editor.style.display = 'block';
+                if (quillToolbar) quillToolbar.style.display = 'block';
+
+                if (!window.quill) {
+                    window.quill = new Quill('#editor', {
+                        theme: 'snow',
+                        modules: {
+                            toolbar: {
+                                container: [
+                                    [{ 'header': [1, 2, false] }],
+                                    ['bold', 'italic', 'underline'],
+                                    ['image', 'code-block']
+                                ],
+                                handlers: {
+                                    'image': imageHandler
+                                }
+                            }
+                        },
+                        placeholder: 'Share your thoughts or ask a question...'
+                    });
+                }
+            }
+
+        });
+    });
+
+    // Add this to the existing script section
+    document.querySelectorAll('input[name="post_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const pollContainer = document.getElementById('poll-options-container');
+            const titleField = document.getElementById('title-field');
+            const editor = document.getElementById('editor');
+            
+            // Define title labels based on post type
+            const titleLabels = {
+                'post': 'Post Title',
+                'question': 'Question Title',
+                'poll': 'Poll Question'
+            };
+            
+            // Create or update title field
+            if (!titleField) {
+                const titleDiv = document.createElement('div');
+                titleDiv.id = 'title-field';
+                titleDiv.className = 'w-100 mb-3';
+                titleDiv.innerHTML = `
+                    <label for="id_title" class="form-label text-secondary small mb-1">${titleLabels[this.value]}</label>
+                    <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your ${titleLabels[this.value].toLowerCase()}" required>
+                `;
+                document.querySelector('.d-flex.flex-wrap.align-items-center.gap-3').insertAdjacentElement('afterend', titleDiv);
+            } else {
+                // Update existing title field label and placeholder
+                titleField.querySelector('label').textContent = titleLabels[this.value];
+                titleField.querySelector('input').placeholder = `Enter your ${titleLabels[this.value].toLowerCase()}`;
+            }
+
+            if (this.value === 'poll') {
+                pollContainer.style.display = 'block';
+                editor.style.display = 'none';
+            } else {
+                pollContainer.style.display = 'none';
+                editor.style.display = 'block';
+            }
+        });
+    });
+
+    // Add/remove poll options
+    document.getElementById('add-option').addEventListener('click', function() {
+        const optionsContainer = document.getElementById('poll-options');
+        const newOption = document.createElement('div');
+        const optionCount = optionsContainer.children.length + 1;
+        
+        newOption.className = 'poll-option mb-2 d-flex gap-2';
+        newOption.innerHTML = `
+            <input type="text" name="poll_options[]" class="form-control" placeholder="Option ${optionCount}" required>
+            <button type="button" class="btn btn-outline-danger remove-option">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                </svg>
+            </button>
+        `;
+        
+        optionsContainer.appendChild(newOption);
+        updateRemoveButtons();
+    });
+
+    function updateRemoveButtons() {
+        const options = document.querySelectorAll('.poll-option');
+        options.forEach(option => {
+            const removeBtn = option.querySelector('.remove-option');
+            removeBtn.style.display = options.length > 2 ? 'block' : 'none';
+            
+            removeBtn.onclick = function() {
+                if (options.length > 2) {
+                    option.remove();
+                    updateRemoveButtons();
+                }
+            };
+        });
+    }
+</script>
+
+<style>
+    /* Professional and subtle theme */
+    :root {
+        --primary-color: #4a6cf7;
+        --primary-hover: #3b5de7;
+        --light-gray: #f5f7fa;
+        --border-color: #e9ecef;
+        --text-muted: #6c757d;
+    }
+
+    #editor {
+        min-height: 180px;
+        border-radius: 0.5rem;
+    }
+    
+    /* Post type selector styling */
+    .post-type-selector {
+        padding: 0.25rem;
+        background-color: var(--light-gray);
+        border-radius: 0.75rem;
+    }
+    
+    .post-type-option {
+        flex: 0 0 auto;
+        cursor: pointer;
+        margin: 0;
+    }
+    
+    .option-content {
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .post-type-option input:checked + .option-content {
+        background-color: white;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+    
+    .post-type-option:hover .option-content:not(.post-type-option input:checked + .option-content) {
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .icon-container {
+        color: var(--text-muted);
+    }
+    
+    .post-type-option input:checked + .option-content .icon-container {
+        color: var(--primary-color);
+    }
+    
+    /* Form select styling */
+    .select-wrapper {
+        position: relative;
+    }
+    
+    
+    
+    .form-select {
+        appearance: none;
+        padding: 0.625rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        font-size: 0.9375rem;
+        color: #495057;
+        background-color: white;
+        cursor: pointer;
+        width: 100%;
+    }
+    
+    .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(74, 108, 247, 0.15);
+        outline: none;
+    }
+    
+    /* Quill editor styling */
+    .ql-toolbar.ql-snow {
+        border-color: var(--border-color);
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        background-color: var(--light-gray);
+        padding: 0.75rem;
+    }
+    
+    .ql-container.ql-snow {
+        border-color: var(--border-color);
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+        font-size: 0.9375rem;
+    }
+    
+    /* Button styling */
+    .btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        font-weight: 500;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+    
+    .btn-light {
+        background-color: var(--light-gray);
+        border-color: var(--light-gray);
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    
+    .btn-light:hover {
+        background-color: #e9ecef;
+        border-color: #e9ecef;
+    }
+
+    /* Form styling */
+    .form-label {
+        font-weight: 500;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .d-flex.flex-wrap.align-items-center.gap-3 {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+        
+        .select-wrapper {
+            width: 100%;
+            max-width: 100% !important;
+            margin-top: 0.5rem;
+            margin-left: 0 !important;
+        }
+    }
+</style>

@@ -1,0 +1,466 @@
+{% load wagtailcore_tags %}
+
+<div class="calendar-wrapper mb-4">
+    <div class="container p-4 bg-white rounded border">
+        <!-- Calendar Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="h2 mb-0 fw-bolder">Google Calendar</h2>
+            <a href="https://calendar.google.com/calendar" 
+                id="google-calendar-link"
+                target="_blank" 
+                class="text-primary" 
+                title="Open Google Calendar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-calendar" viewBox="0 0 16 16">
+                        <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
+                    </svg>
+            </a>
+        </div>
+        
+        <!-- Navigation Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <button class="btn btn-primary btn-sm" onclick="prevMonth()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                </svg>
+            </button>
+            <div class="text-center">
+                <h3 class="h4 mb-0 font-weight-bold" id="current-month"></h3>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="nextMonth()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Day Headers -->
+        <div class="d-grid calendar-header mb-2" style="grid-template-columns: repeat(7, 1fr);">
+            <div class="text-center py-2 bg-light rounded-top fw-bold text-muted">Sun</div>
+            <div class="text-center py-2 bg-light fw-bold text-muted">Mon</div>
+            <div class="text-center py-2 bg-light fw-bold text-muted">Tue</div>
+            <div class="text-center py-2 bg-light fw-bold text-muted">Wed</div>
+            <div class="text-center py-2 bg-light fw-bold text-muted">Thu</div>
+            <div class="text-center py-2 bg-light fw-bold text-muted">Fri</div>
+            <div class="text-center py-2 bg-light rounded-top fw-bold text-muted">Sat</div>
+        </div>
+        
+        <!-- Calendar Days -->
+        <div class="d-grid calendar-body" style="grid-template-columns: repeat(7, 1fr);" id="calendar-days">
+            <!-- Calendar days will be generated here -->
+        </div>
+        
+        <!-- Error Message Container -->
+        <div id="error-message" class="alert alert-danger mt-4 d-none"></div>
+        
+    </div>
+
+    <!-- Event Modal -->
+    <div id="event-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="event-title">Event Details</h5>
+                    <button type="button" class="btn-close" id="close-modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="event-details">
+                    <!-- Event details will be populated here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="close-modal-btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <!-- Event List Modal -->
+    <div id="events-list-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="events-list-title">Events for <span id="selected-date"></span></h5>
+                    <button type="button" class="btn-close" id="close-list-modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="events-list-container">
+                    <!-- Events list will be populated here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="close-list-modal-btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Calendar Styles */
+        .calendar-wrapper {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        
+        .calendar-body {
+            gap: 1px;
+            background-color: #dee2e6;
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+        
+        .calendar-day {
+            background-color: #fff;
+            min-height: 80px;
+            padding: 10px;
+            position: relative;
+            transition: background-color 0.2s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .calendar-day:hover {
+            background-color: #f8f9fa;
+        }
+
+        .calendar-link-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day .day-number {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+        
+        .calendar-day.bg-gray {
+            background-color: #f8f9fa;
+        }
+        
+        .calendar-day.bg-gray .day-number {
+            color: #adb5bd;
+        }
+        
+        .event-dots-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-top: auto;
+            padding-top: 4px;
+        }
+        
+        .event-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #0d6efd;
+            display: inline-block;
+            cursor: pointer;
+        }
+        
+        .event-more {
+            font-size: 0.7rem;
+            color: #0d6efd;
+            margin-left: 3px;
+            cursor: pointer;
+        }
+        
+        .events-list-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid #0d6efd;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .events-list-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        /* Fix for Bootstrap Modal */
+        .modal.fade {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .calendar-day {
+                min-height: 60px;
+                padding: 5px;
+            }
+            
+            .day-number {
+                font-size: 0.8rem;
+            }
+            
+            .event-dot {
+                width: 6px;
+                height: 6px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .calendar-day {
+                min-height: 50px;
+            }
+        }
+    </style>
+
+
+    <script>
+        // Utility function to get query parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Set initial month and year from URL or use current date
+        let currentMonth = getQueryParam('month') || new Date().getMonth() + 1; // Months are 1-12
+        let currentYear = getQueryParam('year') || new Date().getFullYear();
+
+        // Function to fetch calendar data from the API
+        async function fetchCalendarData(month, year) {
+            const errorMessage = document.getElementById('error-message');
+            const calendarLink = document.getElementById('google-calendar-link');
+            errorMessage.classList.add('d-none'); 
+
+            calendarLink.classList.add('calendar-link-disabled');
+        
+            try {
+                const response = await fetch(`components/calendar-events/?month=${month}&year=${year}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest', 
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include' 
+                });
+        
+                if (!response.ok) {
+                    // Handle different error types
+                    if (response.status === 403) {
+                        errorMessage.innerHTML = `
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
+                                <div>
+                                    <p class="fw-medium mb-0">Authentication Required</p>
+                                    <p class="mb-0">Please login with your Google Account to view the calendar.</p>
+                                </div>
+                            </div>`;
+                    } else {
+                        const errorData = await response.json();
+                        errorMessage.innerHTML = `
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                                <div>
+                                    <p class="fw-medium mb-0">Error Loading Calendar</p>
+                                    <p class="mb-0">${errorData.error || `HTTP error! Status: ${response.status}`}</p>
+                                </div>
+                            </div>`;
+                    }
+                    errorMessage.classList.remove('d-none');
+                    return; // Stop execution
+                }
+
+                calendarLink.classList.remove('calendar-link-disabled');
+        
+                const data = await response.json();
+                renderCalendar(data);
+            } catch (error) {
+                console.error('Error fetching calendar data:', error);
+                errorMessage.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>
+                        <div>
+                            <p class="fw-medium mb-0">Something Went Wrong</p>
+                            <p class="mb-0">${error.message || 'Failed to load calendar data.'}</p>
+                        </div>
+                    </div>`;
+                errorMessage.classList.remove('d-none');
+            }
+        }
+
+        // Function to render the calendar
+        function renderCalendar(data) {
+            document.getElementById('current-month').textContent = `${data.month_name} ${data.year}`;
+
+            const calendarDays = document.getElementById('calendar-days');
+            calendarDays.innerHTML = ''; // Clear existing content
+
+            data.month_weeks.forEach(week => {
+                week.forEach(day => {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = `calendar-day ${!day.current_month ? 'bg-gray' : ''}`;
+                    
+                    if (day.day !== 0) {
+                        const daySpan = document.createElement('span');
+                        daySpan.className = 'day-number';
+                        daySpan.textContent = day.day;
+                        dayDiv.appendChild(daySpan);
+
+                        // Filter events for this day
+                        const dayEvents = data.events.filter(event => event.start_date === day.full_date);
+                        
+                        if (dayEvents.length > 0) {
+                            const dotsContainer = document.createElement('div');
+                            dotsContainer.className = 'event-dots-container';
+                            
+                            // Create clickable area for the dots
+                            const clickableArea = document.createElement('div');
+                            clickableArea.style.cursor = 'pointer';
+                            clickableArea.addEventListener('click', () => showEventsListModal(dayEvents, day.full_date));
+                            
+                            // Show max 3 dots + "more" text if needed
+                            const maxVisibleDots = 3;
+                            const dotsToShow = Math.min(dayEvents.length, maxVisibleDots);
+                            
+                            for (let i = 0; i < dotsToShow; i++) {
+                                const dot = document.createElement('span');
+                                dot.className = 'event-dot';
+                                clickableArea.appendChild(dot);
+                            }
+                            
+                            // Add "more" indicator if needed
+                            if (dayEvents.length > maxVisibleDots) {
+                                const moreText = document.createElement('span');
+                                moreText.className = 'event-more';
+                                moreText.textContent = '+' + (dayEvents.length - maxVisibleDots);
+                                clickableArea.appendChild(moreText);
+                            }
+                            
+                            dotsContainer.appendChild(clickableArea);
+                            dayDiv.appendChild(dotsContainer);
+                        }
+                    }
+                    calendarDays.appendChild(dayDiv);
+                });
+            });
+        }
+
+        // Functions for navigation
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            fetchCalendarData(currentMonth, currentYear);
+        }
+
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
+            fetchCalendarData(currentMonth, currentYear);
+        }
+
+        // Function to show events list modal
+        function showEventsListModal(events, date) {
+            const modal = document.getElementById('events-list-modal');
+            const title = document.getElementById('events-list-title');
+            const container = document.getElementById('events-list-container');
+            const dateSpan = document.getElementById('selected-date');
+            
+            // Format the date nicely
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            
+            dateSpan.textContent = formattedDate;
+            container.innerHTML = '';
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No events for this day.</p>';
+            } else {
+                events.forEach(event => {
+                    const eventItem = document.createElement('div');
+                    eventItem.className = 'events-list-item';
+                    eventItem.innerHTML = `
+                        <h6 class="mb-1">${event.summary || 'Untitled Event'}</h6>
+                        <p class="text-muted mb-0 small">${event.description ? event.description.substring(0, 100) + (event.description.length > 100 ? '...' : '') : 'No description'}</p>
+                    `;
+                    eventItem.addEventListener('click', () => {
+                        // Close the list modal
+                        var listModal = bootstrap.Modal.getInstance(modal);
+                        listModal.hide();
+                        
+                        // Show the detail modal
+                        setTimeout(() => {
+                            showEventModal(event);
+                        }, 400);  // Small delay to allow modal transition
+                    });
+                    container.appendChild(eventItem);
+                });
+            }
+            
+            // Show the modal using Bootstrap's modal API
+            var bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+
+        // Function to show event modal
+        function showEventModal(event) {
+            const modal = document.getElementById('event-modal');
+            const title = document.getElementById('event-title');
+            const details = document.getElementById('event-details');
+
+            title.textContent = event.summary || 'Untitled Event';
+            details.innerHTML = `
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Description:</dt>
+                    <dd class="col-sm-9">${event.description || 'No description available'}</dd>
+                    
+                    <dt class="col-sm-3">Date:</dt>
+                    <dd class="col-sm-9">${event.start_date || 'N/A'}</dd>
+                    
+                    <dt class="col-sm-3">Created:</dt>
+                    <dd class="col-sm-9">${event.create_at || 'N/A'}</dd>
+                    
+                    <dt class="col-sm-3">Updated:</dt>
+                    <dd class="col-sm-9">${event.update_at || 'N/A'}</dd>
+                </dl>
+            `;
+            
+            // Show the modal using Bootstrap's modal API
+            var bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+
+        // Close modal handlers
+        document.getElementById('close-modal').addEventListener('click', () => {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('event-modal'));
+            modal.hide();
+        });
+        
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('event-modal'));
+            modal.hide();
+        });
+        
+        document.getElementById('close-list-modal').addEventListener('click', () => {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('events-list-modal'));
+            modal.hide();
+        });
+        
+        document.getElementById('close-list-modal-btn').addEventListener('click', () => {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('events-list-modal'));
+            modal.hide();
+        });
+
+        // Check if Bootstrap is loaded and initialize the modal
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof bootstrap === 'undefined') {
+                console.warn('Bootstrap JS is not loaded. The modal may not work correctly.');
+                // Add fallback modal functionality here if needed
+            }
+            
+            // Initial fetch
+            fetchCalendarData(currentMonth, currentYear);
+        });
+    </script>
+</div>

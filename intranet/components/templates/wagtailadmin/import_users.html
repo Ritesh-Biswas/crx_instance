@@ -1,0 +1,74 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailadmin_tags %}
+
+{% block titletag %}Import Users{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+    <h1>Import Users</h1>
+    
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="help-block">
+        <p>Upload a CSV file containing user data. The CSV should have the following columns(header):</p>
+        <ul>
+            <li>username <span style="color: red;">*</span></li>
+            <li>email <span style="color: red;">*</span></li>
+            <li>first_name <span style="color: red;">*</span></li>
+            <li>last_name <span style="color: red;">*</span></li>
+        </ul>
+        <a href="{% url 'download_sample_csv' %}" class="button button-secondary">Download Sample CSV</a>
+    </div>
+
+    <form action="{% url 'import_users' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div>
+            <label for="csv_file">Choose CSV File</label>
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+        </div>
+        <button type="submit" class="button">Import Users</button>
+    </form>
+</div>
+
+<style>
+    .messages {
+        margin: 1em 0;
+        padding: 1em;
+        border-radius: 3px;
+    }
+    .success {
+        background: #dff0d8;
+        color: #3c763d;
+    }
+    .error {
+        background: #f2dede;
+        color: #a94442;
+    }
+    .help-block {
+        margin: 2em 0;
+        padding: 1em;
+        color:#ffff;
+        border-radius: 3px;
+    }
+    .help-block ul {
+        margin: 1em 0;
+        padding-left: 2em;
+    }
+    form > div {
+        margin: 1em 0;
+    }
+    label {
+        display: block;
+        margin-bottom: 0.5em;
+    }
+    .button-secondary {
+        margin-top: 1em;
+    }
+</style>
+{% endblock %}

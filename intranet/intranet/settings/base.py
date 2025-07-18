@@ -178,7 +178,7 @@ MEDIA_URL = "/media/"
 
 # Login
 
-LOGIN_URL = "wagtailadmin_login"
+LOGIN_URL = "accounts/login/"
 LOGIN_REDIRECT_URL = "wagtailadmin_home"
 
 
@@ -211,5 +211,150 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Disable built-in CRX Navbar and Footer since this project has a
 # custom implementation.
-CRX_DISABLE_NAVBAR = True
+CRX_DISABLE_NAVBAR = False
 CRX_DISABLE_FOOTER = True
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+SITE_ID = 1
+
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_STORE_TOKENS = True
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": [
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/calendar.events.readonly",
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/drive.metadata.readonly",
+        ],
+        "AUTH_PARAMS": {"access_type": "offline", "prompt": "consent"},
+    },
+   'microsoft': {
+        'SCOPE': [
+            'User.Read', 
+            'openid', 
+            'email', 
+            'profile', 
+            'offline_access', 
+            'Files.Read',
+            'Files.ReadWrite',
+            'Calendars.ReadWrite'
+        ],
+        'AUTH_PARAMS': {
+            'prompt': 'select_account',  # Changed from select_account
+        },
+        'TENANT': 'common',  # Changed from common
+        'METHOD': 'oauth2',
+        'VERIFIED_EMAIL': True,
+    }
+}
+
+ALLOWED_HOSTS = ["*"]
+DEBUG = True
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_UNIQUE_EMAIL = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'allauth': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "website", "static"),  # Add this line to recognize the static directory
+]
+
+WAGTAILADMIN_EXTRA_JS = [
+    'website/js/admin-tour.js',  # Update path to match your file structure
+]
+
+# WAGTAIL_USER_PROFILE_MODEL = 'custom_user.CustomUserProfile'
+COMMENT_ALLOW_BLOCKING_USERS = True
+COMMENT_ALLOW_MODERATOR_TO_BLOCK = True
+
+PROFILE_APP_NAME = 'custom_user'
+PROFILE_MODEL_NAME = 'UserExtraProfile'
+COMMENT_FLAGS_ALLOWED = True
+COMMENT_SHOW_FLAGGED=True
+COMMENT_FLAG_REASONS = [
+    (1, ('Spam | Exists only to promote a service')),
+    (2, ('Abusive | Intended at promoting hatred')),
+    (3, ('Racist | Sick mentality')),
+    (4, ('Whatever | Your reason')),
+]
+
+JAZZMIN_SETTINGS = {
+     "site_title": "CMS Portal",
+
+      "site_header": "CMS Portal",
+
+      "site_brand": "CMS Portal",
+      
+      "site_logo": "website/wagtailadmin/images/logo.jpeg",
+
+      "copyright": "Artesian Software Technologies LLP",
+
+      "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+
+        "comment.Comment" : "fas fa-comments",
+        "comment.BlockedUser" : "fas fa-user-slash",
+        "comment.BlockedUserHistory" : "fas fa-history",
+        "comment.Flag" : "fas fa-flag",
+        "comment.Follower" : "fas fa-user-plus",
+        "comment.Reaction" : "fas fa-thumbs-up",
+
+        "Custom_Media.CustomImage" : "fas fa-image",
+        "Custom_Media.CustomDocument" : "fas fa-file",
+        "Custom_User.User" : "fas fa-user",
+
+        "socialaccount.socialaccount": "fas fa-user-cog",
+        "socialaccount.socialtoken": "fas fa-key",
+        "socialaccount.socialapp": "fas fa-plug",
+
+        "account.emailaddress": "fas fa-envelope",
+
+        "Taggit.Tag": "fas fa-tags",
+    },
+
+    "topmenu_links": [
+
+        # Url that gets reversed (Permissions can be added)
+        {"name": "Website", "url": "/", "new_window": True},
+
+        # external url that opens in a new window (Permissions can be added)
+        {"name": "Support", "url": "https://www.artesian.io/contact-us/", "new_window": True},
+    ],
+
+    "show_ui_builder": True,
+
+    "custom_js": "website/js/main.js",
+      
+}

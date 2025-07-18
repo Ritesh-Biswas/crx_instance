@@ -1,0 +1,126 @@
+{% load wagtailcore_tags wagtailimages_tags %}
+{% comment %} <h2 class="h2 fw-bold mb-4">News</h2> {% endcomment %}
+<div class="container my-4">
+ 
+    {% if value.carousel_collection %}
+        {% for carousel in value.carousel_collection.carousels.all %}
+            <div class="bg-transparent mb-5 rounded overflow-hidden" id="carousel-{{ forloop.counter }}">
+                <h3 class="h3 fw-bold ps-3">{{ carousel.title }}</h3>
+                
+                <!-- Changed data-bs-ride="false" to data-bs-ride="carousel" -->
+                <div id="carouselId-{{ forloop.counter }}" class="carousel slide position-relative" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        {% for slide in carousel.slides.all %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            {% if slide.image_gallery %}
+                                <div class="row g-2">
+                                    {% for gallery_image in slide.get_images %}
+                                        {% with width_class=gallery_image.get_width_class %}
+                                            <div class="px-2 col" style="flex: 0 0 auto; width: {% if width_class == 'w-full' %}100%{% elif width_class == 'w-1/2' %}50%{% elif width_class == 'w-1/4' %}25%{% else %}33.33%{% endif %};">
+                                                <div class="position-relative overflow-hidden" style="height: 24rem;">
+                                                    {% image gallery_image.image width-800 class="w-100 h-100 object-fit-cover rounded" alt=gallery_image.image_title|default:"Gallery image" %}
+                                                    {% if gallery_image.image_title %}
+                                                        <div class="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white p-2 m-2 rounded small fw-medium">
+                                                            {{ gallery_image.image_title }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endwith %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if slide.caption %}
+                                <div class="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white p-3 m-3 rounded" style="max-width: 28rem;">
+                                    {{ slide.caption }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Navigation Controls remain unchanged -->
+                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselId-{{ forloop.counter }}" data-bs-slide="prev">
+                        <div class="bg-white bg-opacity-75 text-dark rounded-circle d-flex align-items-center justify-content-center" style="width: 3rem; height: 3rem;">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        </div>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#carouselId-{{ forloop.counter }}" data-bs-slide="next">
+                        <div class="bg-white bg-opacity-75 text-dark rounded-circle d-flex align-items-center justify-content-center" style="width: 3rem; height: 3rem;">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        </div>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                    
+                    <!-- Indicators remain unchanged -->
+                    <div class="carousel-indicators position-absolute bottom-0 end-0 me-10 mb-3">
+                        {% for slide in carousel.slides.all %}
+                            <button type="button" data-bs-target="#carouselId-{{ forloop.counter }}" data-bs-slide-to="{{ forloop.counter0 }}" class="{% if forloop.first %}active{% endif %}" aria-current="{% if forloop.first %}true{% else %}false{% endif %}" aria-label="Slide {{ forloop.counter }}"></button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Updated JavaScript -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Find all carousel elements
+        const carousels = document.querySelectorAll('.carousel');
+        
+        carousels.forEach(function(carousel) {
+            const id = carousel.id;
+            const slides = carousel.querySelectorAll('.carousel-item');
+            
+            // Initialize Bootstrap carousel with 3-second interval
+            const bsCarousel = new bootstrap.Carousel(carousel, {
+                interval: 3000,  // 3 seconds
+                keyboard: true,
+                touch: true,
+                ride: 'carousel'  // Ensures auto-start
+            });
+            
+            // Add swipe functionality
+            let touchStartX = 0;
+            let touchEndX = 0;
+            
+            carousel.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+            
+            carousel.addEventListener('touchend', function(e) {
+                touchEndX = e.changedTouches[0].screenX;
+                
+                const deltaX = touchEndX - touchStartX;
+                const threshold = 50; // Minimum swipe distance
+                
+                if (deltaX > threshold) {
+                    // Swipe right - go to previous slide
+                    bsCarousel.prev();
+                } else if (deltaX < -threshold) {
+                    // Swipe left - go to next slide
+                    bsCarousel.next();
+                }
+            });
+            
+            // Hide controls if only one slide
+            if (slides.length <= 1) {
+                const prevButton = carousel.querySelector('.carousel-control-prev');
+                const nextButton = carousel.querySelector('.carousel-control-next');
+                const indicators = carousel.querySelector('.carousel-indicators');
+                
+                if (prevButton) prevButton.style.display = 'none';
+                if (nextButton) nextButton.style.display = 'none';
+                if (indicators) indicators.style.display = 'none';
+            }
+            
+            // Add keyboard navigation when carousel has focus
+            carousel.addEventListener('mouseenter', function() {
+                this.focus();
+            });
+        });
+    });
+</script>
