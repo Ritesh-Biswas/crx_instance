@@ -38,47 +38,58 @@ from wagtail.models import Collection
 from custom_media.models import CustomDocument  # Add this import at the top with other imports
 from django.http import HttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
+from django.http import HttpResponseBadRequest
 
 User = get_user_model()
 
 
 @login_required
 def blog_post_create_view(request):
-    if request.method == "POST":
+    if request.method == 'POST':
+        post_type = request.POST.get('post_type', 'post')
+        title = request.POST.get('title', '')
+        body = request.POST.get('body', '')
+        subdepartment_id = request.POST.get('subdepartment')
+
+        # Get the UserProfile instance for the current user
         user_profile = UserProfile.objects.get(user=request.user)
-        post = BlogPost()
-        post.post_type = request.POST.get('post_type')
-        post.title = request.POST.get('title')
-        post.body = request.POST.get('body')
-        post.author = user_profile
 
-        if post.post_type == 'poll':
+        # Create the blog post
+        post = BlogPost.objects.create(
+            author=user_profile,  # Use the UserProfile instance
+            title=title,
+            body=body,
+            post_type=post_type,
+            subdepartment_id=subdepartment_id if subdepartment_id != 'global' else None
+        )
+
+        # Handle poll-specific data if it's a poll
+        if post_type == 'poll':
             poll_end_time = request.POST.get('poll_end_time')
-
-            if poll_end_time:
-                naive_dt = datetime.strptime(poll_end_time, '%Y-%m-%dT%H:%M')
-                local_tz = pytz.timezone("Asia/Kolkata")
-                local_dt = local_tz.localize(naive_dt)
-                utc_dt = local_dt.astimezone(pytz.UTC)
-                post.poll_end_time = utc_dt.strftime('%Y-%m-%d %H:%M:%S%z')
-
-        if request.POST.get('subdepartment') != 'global':
-            subdepartment = SubDepartmentPage.objects.filter(id=request.POST.get('subdepartment')).first()
-            post.subdepartment = subdepartment        
-        post.save()
-
-        if post.post_type == 'poll':
             poll_options = request.POST.getlist('poll_options[]')
+            
+            if poll_end_time:
+                post.poll_end_time = poll_end_time
+                post.save()
+            
             for option_text in poll_options:
-                if option_text.strip():  # Only create options for non-empty strings
-                    PollOption.objects.create(
-                        post=post,
-                        text=option_text.strip()
-                    )
+                if option_text.strip():
+                    PollOption.objects.create(post=post, text=option_text)
 
-        # messages.success(request, "Blog post created successfully.")
-        return HttpResponseRedirect("/")
-    return render(request, "components/blog_post_block.html")
+        # If it's an HTMX request, return just the new post HTML
+        if request.headers.get('HX-Request'):
+            return render(request, 'components/partials/post_list.html', {
+                'posts': [post],
+            })
+
+        # For regular requests, return JSON response
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Post created successfully',
+            'post_id': post.id
+        })
+
+    return HttpResponseBadRequest("Invalid request method")
 
 # Add new views for poll voting
 @login_required
@@ -223,7 +234,18 @@ def load_more_posts(request):
             models.Q(subdepartment__in=accessible_departments) | 
             models.Q(subdepartment__isnull=True)
         )
-
+    
+    # Apply filters if request is from HTMX
+    if request.headers.get('HX-Request'):
+        post_type = request.GET.get('post_type_filter')
+        department_id = request.GET.get('department_filter')
+        
+        if post_type and post_type != 'all':
+            posts = posts.filter(post_type=post_type)
+        
+        if department_id and department_id != 'all':
+            posts = posts.filter(subdepartment_id=department_id)
+    
     paginator = Paginator(posts, 10)
 
     try:
@@ -231,8 +253,10 @@ def load_more_posts(request):
     except PageNotAnInteger:
         page_obj = paginator.page(1)
     except EmptyPage:
+        if request.headers.get('HX-Request'):
+            return HttpResponse('')  # Return empty response for HTMX infinite scroll
         page_obj = paginator.page(paginator.num_pages)
-
+    
     posts_data = []
     for post in page_obj:
         dept_url = ''
@@ -261,14 +285,20 @@ def load_more_posts(request):
             'likes_count': post.likes_count,
             'comments_count': post.get_comments().count(),
             'sub_department': post.subdepartment.name if post.subdepartment else 'Global',
-            'dept_url' : dept_url,
+            'dept_url': dept_url,
             'department_id': post.subdepartment.id if post.subdepartment else 'global',
             'url': reverse('components:blog_post_detail', kwargs={'pk': post.pk}),
             'total_votes': total_votes,
             'is_poll_active': is_poll_active,
             'is_like_by_user': is_liked,  
         })
-
+    
+    # Return HTML for HTMX requests
+    if request.headers.get('HX-Request'):
+        return render(request, 'components/partials/post_list.html', {
+            'posts': posts_data
+        })
+    
     return JsonResponse({'posts': posts_data})
 
 

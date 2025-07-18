@@ -1,7 +1,7 @@
 {% if value.display_snippet.show_blogpost %}
 <div class="row mt-4">
     <div class="col-12">
-        <div class="bg-white p-4  border rounded-lg rounded">
+        <div class="bg-white p-4 border rounded-lg rounded">
             <div class="d-flex align-items-center mb-3">
                 <h2 class="h2 fw-bold me-auto">Latest Posts</h2>
                 <div class="d-flex gap-3">
@@ -14,7 +14,14 @@
                                     <path d="M4 5h8v1H4V5zm0 2h8v1H4V7zm0 2h8v1H4V9zm0 2h4v1H4v-1z"/>
                                 </svg>
                             </span>
-                            <select id="post_type_filter" name="post_type_filter" class="form-select">
+                            <select id="post_type_filter" 
+                                    name="post_type_filter" 
+                                    class="form-select"
+                                    hx-get="{% url 'components:load_more_posts' %}"
+                                    hx-target="#blog-post-list"
+                                    hx-trigger="change"
+                                    hx-include="#department_filter"
+                                    hx-indicator="#loading-spinner">
                                 <option value="all">View all</option>
                                 <option value="post">Posts only</option>
                                 <option value="question">Questions only</option>
@@ -30,7 +37,14 @@
                                     <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 9.5A1.5 1.5 0 0 1 2.5 8h3A1.5 1.5 0 0 1 7 9.5v3A1.5 1.5 0 0 1 5.5 14h-3A1.5 1.5 0 0 1 1 12.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 8h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 12.5v-3z"/>
                                 </svg>
                             </span>
-                            <select id="department_filter" name="department_filter" class="form-select">
+                            <select id="department_filter" 
+                                    name="department_filter" 
+                                    class="form-select"
+                                    hx-get="{% url 'components:load_more_posts' %}"
+                                    hx-target="#blog-post-list"
+                                    hx-trigger="change"
+                                    hx-include="#post_type_filter"
+                                    hx-indicator="#loading-spinner">
                                 <option value="all">View all</option>
                                 <!-- Department options will be populated dynamically -->
                             </select>
@@ -38,658 +52,58 @@
                     </div>
                 </div>
             </div>
-            <ul id="blog-post-list" class="list-unstyled"></ul>
+            <ul id="blog-post-list" class="list-unstyled"
+                hx-get="{% url 'components:load_more_posts' %}"
+                hx-trigger="revealed"
+                hx-swap="beforeend"
+                hx-include="#post_type_filter, #department_filter"
+                hx-indicator="#loading-spinner">
+                {% include "components/partials/post_list.html" with posts=initial_posts %}
+            </ul>
             <div id="loading-spinner" class="text-center my-4" style="display: none;">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
-            <div class="text-center my-4 load-more-container">
-                <button id="load-more-btn" class="btn btn-primary" style="display: none;">Load More</button>
-            </div>
         </div>
     </div>
 </div>
-<!-- Add this at the bottom of your template -->
-<!-- Replace the existing modal with this updated version -->
+
+<!-- Edit Post Modal -->
 <div class="modal fade" id="editPostModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Post</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="edit-form">
-                    <!-- Title field (for questions and polls) -->
-                    <div id="edit-title-field" class="mb-3" style="display: none;">
-                        <label class="form-label text-secondary small mb-1">Title</label>
-                        <input type="text" id="edit-title" name="title" class="form-control">
-                    </div>
-
-                    <!-- Poll specific fields -->
-                    <div id="edit-poll-container" class="mb-3" style="display: none;">
-                        <div class="poll-end-time mb-3">
-                            <label class="form-label text-secondary small mb-1">Poll End Time</label>
-                            <input type="datetime-local" name="poll_end_time" class="form-control" id="edit-poll-end-time">
-                        </div>
-
-                        {% comment %} <div class="poll-end-time mb-3">
-                            <label class="form-label text-secondary small mb-1">Poll End Time</label>
-                            <input type="datetime-local" 
-                                name="poll_end_time" 
-                                class="form-control" 
-                                data-poll-field
-                                min="{{ now|date:'Y-m-d' }}T00:00" 
-                                id="edit-poll-end-time">
-                        </div> {% endcomment %}
-
-                        <div class="poll-options">
-                            <label class="form-label text-secondary small mb-1">Poll Options</label>
-                            <div id="edit-poll-options"></div>
-                            <button type="button" id="edit-add-option" class="btn btn-outline-primary btn-sm mt-2">Add Option</button>
-                        </div>
-                    </div>
-
-                    <!-- Editor (for posts and questions) -->
-                    <div id="edit-editor-container">
-                        <div id="edit-editor"></div>
-                    </div>
-
-                    <!-- Department dropdown -->
-                    <select id="edit-subdepartment" class="form-select mt-3">
-                        <option value="global">Global</option>
-                    </select>
-
-                    <button type="submit" class="btn btn-primary mt-3">Save changes</button>
-                </form>
-            </div>
+            <!-- Content will be loaded via HTMX -->
         </div>
     </div>
 </div>
 
 {% endif %}
+
+<!-- Include HTMX -->
+<script src="https://unpkg.com/htmx.org@2.0.6"></script>
+
 <script>
-// Add this at the top of your script section
-const styleEl = document.createElement('style');
-styleEl.innerHTML = `
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.3); }
-        100% { transform: scale(1); }
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.successful && evt.detail.target.id === 'blog-post-list') {
+        // Re-initialize any necessary JavaScript after content is loaded
     }
+});
+
+// Keep existing JavaScript for department loading
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentDropdown = document.getElementById('department_filter');
     
-    .like-btn {
-        transition: all 0.2s ease;
-        border-radius: 4px;
-        padding: 4px 8px;
-    }
-    
-    .like-btn.liked {
-        background-color: #e6f7ff;
-        border-color: #1890ff;
-    }
-    
-    .like-btn .thumbs-up-icon {
-        transition: all 0.2s ease;
-    }
-    
-    .like-btn .thumbs-up-icon.text-primary {
-        fill: #1890ff;
-        color: #1890ff !important;
-    }
-
-    .like-btn .thumbs-up-icon.far {
-        fill: #ffffff; /* White fill for unliked state */
-        stroke: #000000; /* Black outline */
-        stroke-width: 1; /* Outline thickness */
-    }
-
-    .like-btn .thumbs-up-icon.text-secondary {
-        fill:rgb(255, 255, 255);
-        color: #1890ff !important;
-    }
-    .load-more-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-`;
-document.head.appendChild(styleEl);
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-function toggleLike(event, postId) {
-    event.preventDefault();
-    event.stopPropagation();
-    
-    const likeBtn = event.currentTarget;
-    const thumbsUpIcon = likeBtn.querySelector('.thumbs-up-icon');
-    const likesCount = likeBtn.querySelector('.likes-count');
-    
-    fetch(`/components/toggle-like-post/${postId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            likesCount.textContent = data.likes_count;
-            
-            if (data.liked) {
-                thumbsUpIcon.classList.remove('far');
-                thumbsUpIcon.classList.add('fas');
-                thumbsUpIcon.classList.add('text-primary'); // Add color to indicate liked state
-
-                thumbsUpIcon.style.animation = 'pulse 0.3s';
-                likeBtn.classList.add('liked');
-            } else {
-                thumbsUpIcon.classList.remove('fas');
-                thumbsUpIcon.classList.remove('text-primary'); // Remove color when unliked
-                thumbsUpIcon.setAttribute('fill', 'currentColor');
-                thumbsUpIcon.classList.add('far');
-                thumbsUpIcon.style.animation = '';
-                likeBtn.classList.remove('liked');
-            }
-            
-            // Update the data-liked attribute
-            likeBtn.dataset.liked = data.liked;
-        }
-    })
-    .catch(error => console.error('Error:', error));
-}
-    document.addEventListener('DOMContentLoaded', function() {
-
-        function convertToLocalTime(utcDateString) {
-            const utcDate = new Date(utcDateString);
-            let utcDatexxx = utcDate.toLocaleString();
-            return utcDatexxx
-        }
-        
-        // Utility function to get CSRF token
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-
-        // Show alert function
-        function showAlert(message, type = 'success') {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
-            alertDiv.style.zIndex = "1050";
-            alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.body.appendChild(alertDiv);
-            setTimeout(() => alertDiv.remove(), 3000);
-        }
-
-        let page = 1;
-        let postsPerPage = 3; // Show 3 posts at a time
-        const blogPostList = document.getElementById('blog-post-list');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const loadMoreBtn = document.getElementById('load-more-btn');
-        const postTypeFilter = document.getElementById('post_type_filter');
-        const departmentFilter = document.getElementById('department_filter');
-        
-        let allPosts = []; // Store all fetched posts
-        let displayedPostsCount = 0; // Track number of posts currently displayed
-        let departments = [];
-
-        // Fetch departments from the API
-        function fetchDepartments() {
-            fetch('/components/subdepartments/')
-                .then(response => response.json())
-                .then(data => {
-                    departments = data.subdepartments;
-                    populateDepartmentFilter();
-                })
-                .catch(error => console.error('Error loading departments:', error));
-        }
-
-        function populateDepartmentFilter() {
-            while (departmentFilter.options.length > 2) {
-                departmentFilter.remove(2);
-            }
-            departments.forEach(dept => {
+    fetch('/components/subdepartments/')
+        .then(response => response.json())
+        .then(data => {
+            data.subdepartments.forEach(dept => {
                 const option = document.createElement('option');
                 option.value = dept.id;
                 option.textContent = dept.name;
-                departmentFilter.appendChild(option);
+                departmentDropdown.appendChild(option);
             });
-        }
-        //Hello
-
-        // Fetch posts from the server
-        function loadMorePosts() {
-            loadingSpinner.style.display = 'block';
-            loadMoreBtn.style.display = 'none';
-
-            fetch(`/components/load-more-posts/?page=${page}`)
-                .then(response => response.json())
-                .then(data => {
-                    loadingSpinner.style.display = 'none';
-                    if (data.posts.length > 0) {
-                        const processedPosts = data.posts.map(post => ({
-                            ...post,
-                            total_votes: post.type.toLowerCase() === 'poll' ? 
-                                (post.total_votes || 0) : // Use total_votes if available
-                                0 // Default to 0 for non-poll posts
-                        }));
-                        allPosts = allPosts.concat(data.posts); // Append new posts
-                        displayFilteredPosts(); // Display filtered posts
-                        page++;
-                    }
-                })
-                .catch(error => {
-                    loadingSpinner.style.display = 'none';
-                    console.error('Error loading more posts:', error);
-                });
-        }
-
-        // Display filtered posts (limited to 3 at a time)
-        function displayFilteredPosts(reset = false) {
-            if (reset) {
-                displayedPostsCount = 0; // Reset count when filters change
-                blogPostList.innerHTML = ''; // Clear current posts
-            }
-
-            const selectedPostType = postTypeFilter.value;
-            const selectedDepartmentId = departmentFilter.value;
-
-            // Filter posts based on selected filters
-            const filteredPosts = allPosts.filter(post => {
-                if (selectedPostType && selectedPostType !== 'all') {
-                    if (post.type.toLowerCase() !== selectedPostType.toLowerCase()) return false;
-                }
-                if (selectedDepartmentId && selectedDepartmentId !== 'all') {
-                    if (post.department_id != selectedDepartmentId) return false;
-                }
-                return true;
-            });
-
-            // Slice the filtered posts to show only the next 3
-            const postsToShow = filteredPosts.slice(displayedPostsCount, displayedPostsCount + postsPerPage);
-
-            postsToShow.forEach(post => {
-                const postElement = document.createElement('li');
-                postElement.classList.add('mb-3', 'border-bottom', 'pb-3');
-                let author = post.author;
-              
-
-                let formattedBody = post.body ? post.body.replace(/<img([^>]+)>/g, '<img$1 style="max-width:30%; height:auto; display:block; margin-top:10px;">') : '';
-                let typeIcon = post.type.toLowerCase() === 'post' ?
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
-                        <path d="M14.5 3a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456l-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                    </svg>` :
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
-                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                        <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z"/>
-                    </svg>`;
-                    const userGroups = [
-                        {% for group in request.user.groups.all %}
-                        '{{ group.name }}'{% if not forloop.last %},{% endif %}
-                        {% endfor %}
-                    ];  
-
-                    const postActionsHtml = (post.author == {{ request.user.id }} || {{ request.user.is_superuser|yesno:"true,false" }} || userGroups.includes('Tenant')) ? ` 
-                    <div class="post-actions">
-                        ${(post.type.toLowerCase() !== 'poll' || post.is_poll_active) ? `
-                            <button class="edit-post-btn btn btn-sm btn-outline-primary me-2" data-post-id="${post.id}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456l-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                                </svg>
-                                Edit
-                            </button>
-                        ` : ''}
-                        <button class="delete-post-btn btn btn-sm btn-outline-danger" data-post-id="${post.id}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                            </svg>
-                            Delete
-                        </button>
-                    </div>
-                ` : '';
-
-                postElement.innerHTML = `
-                <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
-                    <a href="${post.url}" class="text-decoration-none text-body">
-                        ${post.title ? `
-                            <h3 class="fs-5 fw-semibold text-dark mb-2 transition-color" 
-                                style="transition: color 0.2s ease-in-out;" 
-                                onmouseover="this.style.color='#3182ce';" 
-                                onmouseout="this.style.color='#2d3748';">
-                                ${post.title}
-                            </h3>
-                        ` : ''}
-                        <div class="mb-2">${formattedBody}</div>
-                        <p class="fs-6 text-muted mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
-                                <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
-                                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
-                            </svg>
-                            <strong>${ post.created_at}</strong>
-                            by <strong class=""><a href="${post.author_profile_url}" class="text-decoration-none">${post.author_name}</a></strong>
-                            In
-                            <strong class="">
-                            <a href="${post.dept_url}" class="text-decoration-none">${post.sub_department}</a>
-                            </strong>
-                        </p>
-                        <div class="d-flex align-items-center gap-3">
-                            ${post.type.toLowerCase() === 'poll' ? `
-                                <span class="d-flex align-items-center fs-6 text-secondary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
-                                        <path d="M1.5 8a.5.5 0 0 0 .5.5h1.325a.5.5 0 0 0 0-1H2a.5.5 0 0 0-.5.5zM4 8a.5.5 0 0 0 .5.5h1.325a.5.5 0 0 0 0-1H4.5a.5.5 0 0 0-.5.5zm3 0a.5.5 0 0 0 .5.5h1.325a.5.5 0 0 0 0-1H7.5a.5.5 0 0 0-.5.5zm3 0a.5.5 0 0 0 .5.5h1.325a.5.5 0 0 0 0-1h-1.325a.5.5 0 0 0-.5.5zm3 0a.5.5 0 0 0 .5.5h1.325a.5.5 0 0 0 0-1h-1.325a.5.5 0 0 0-.5.5z"/>
-                                        <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z"/>
-                                    </svg>
-                                    ${post.total_votes || 0} votes
-                                </span>
-                            ` : `
-                                 <span class="d-flex align-items-center fs-6">
-                                    <button class="btn btn-sm position-relative like-btn ${post.is_like_by_user ? 'liked' : ''}" 
-                                            onclick="toggleLike(event, ${post.id})" 
-                                            data-liked="${post.is_like_by_user}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" 
-                                            fill="${post.is_like_by_user ? '#1890ff' : 'currentColor'}"  
-                                            class="me-1 thumbs-up-icon ${post.is_like_by_user ? 'fas text-primary' : 'far'}" 
-                                            viewBox="0 0 16 16">
-                                            <path d="M6.956 1.745C7.021.81 7.908.087 8.864.325l.261.066c.463.116.874.456 1.012.965.22.816.533 2.511.062 4.51a9.84 9.84 0 0 1 .443-.051c.713-.065 1.669-.072 2.516.21.518.173.994.681 1.2 1.273.184.532.16 1.162-.234 1.733.058.119.103.242.138.363.077.27.113.567.113.856 0 .289-.036.586-.113.856-.039.135-.09.273-.16.404.169.387.107.819-.003 1.148a3.163 3.163 0 0 1-.488.901c.054.152.076.312.076.465 0 .305-.089.625-.253.912C13.1 15.522 12.437 16 11.5 16H8c-.605 0-1.07-.081-1.466-.218a4.82 4.82 0 0 1-.97-.484l-.048-.03c-.504-.307-.999-.609-2.068-.722C2.682 14.464 2 13.846 2 13V9c0-.85.685-1.432 1.357-1.615.849-.232 1.574-.787 2.132-1.41.56-.627.914-1.28 1.039-1.639.199-.575.356-1.539.428-2.59z"/>
-                                        </svg>
-                                        <span class="likes-count">${post.likes_count}</span>
-                                    </button>
-                                </span>
-                                <span class="d-flex align-items-center fs-6 text-secondary">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
-                                    <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                                    <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
-                                </svg>
-                                ${post.comments_count}
-                            </span>
-                            `}
-                            
-                            ${postActionsHtml}
-                        </div>
-                    </a>
-                </div>
-                <span class="badge bg-secondary d-flex align-items-center" style="width: fit-content">
-                    ${typeIcon}
-                    ${post.type}
-                </span>
-            `;
-
-                // Add event listeners for edit/delete buttons
-                const editBtn = postElement.querySelector('.edit-post-btn');
-                const deleteBtn = postElement.querySelector('.delete-post-btn');
-                if (editBtn) {
-                    editBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        editPost(this.dataset.postId);
-                    });
-                }
-                if (deleteBtn) {
-                    deleteBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        deletePost(this.dataset.postId);
-                    });
-                }
-
-                blogPostList.appendChild(postElement);
-            });
-
-            // Update displayed count
-            displayedPostsCount += postsToShow.length;
-
-            // Show "Load More" button if there are more posts to load
-            if (displayedPostsCount < filteredPosts.length) {
-                loadMoreBtn.style.display = 'block';
-            } else {
-                loadMoreBtn.style.display = 'none';
-            }
-
-            // Show message if no posts match filter
-            if (filteredPosts.length === 0) {
-                blogPostList.innerHTML = `
-                    <li class="text-center p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="mb-2 text-muted" viewBox="0 0 16 16">
-                            <path d="M11.46.146A.5.5 0 0 0 11.107 0H4.893a.5.5 0 0 0-.353.146L.146 4.54A.5.5 0 0 0 0 4.893v6.214a.5.5 0 0 0 .146.353l4.394 4.394a.5.5 0 0 0 .353.146h6.214a.5.5 0 0 0 .353-.146l4.394-4.394a.5.5 0 0 0 .146-.353V4.893a.5.5 0 0 0-.146-.353L11.46.146zM8 4c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995A.905.905 0 0 1 8 4zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
-                        </svg>
-                        <p>No posts match the selected filters</p>
-                    </li>`;
-                loadMoreBtn.style.display = 'none';
-            }
-        }
-
-        // Edit post function
-        function editPost(postId) {
-            const editModal = new bootstrap.Modal(document.getElementById('editPostModal'));
-            const titleField = document.getElementById('edit-title-field');
-            const pollContainer = document.getElementById('edit-poll-container');
-            const editorContainer = document.getElementById('edit-editor-container');
-
-            fetch(`/components/edit-post/${postId}/`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.json();
-                })
-                .then(data => {
-                    // Initialize Quill editor if not already initialized
-                    if (!window.editQuill) {
-                        window.editQuill = new Quill('#edit-editor', {
-                            theme: 'snow',
-                            modules: { toolbar: [['bold', 'italic', 'underline'], ['image', 'code-block']] }
-                        });
-                    }
-
-                    // Show/hide appropriate fields based on post type
-                    titleField.style.display = 'block'; // Always show title field
-                    pollContainer.style.display = data.type === 'poll' ? 'block' : 'none';
-                    editorContainer.style.display = data.type === 'poll' ? 'none' : 'block';
-
-                    // Set title
-                    document.getElementById('edit-title').value = data.title || '';
-
-                    // Populate subdepartments dropdown
-                    const subdepartmentSelect = document.getElementById('edit-subdepartment');
-                    subdepartmentSelect.innerHTML = '<option value="global">Global</option>';
-                    if (data.subdepartments) {
-                        data.subdepartments.forEach(dept => {
-                            const option = document.createElement('option');
-                            option.value = dept.id;
-                            option.textContent = dept.name;
-                            if (data.subdepartment === dept.id) {
-                                option.selected = true;
-                            }
-                            subdepartmentSelect.appendChild(option);
-                        });
-                    }
-
-                    // Set poll-specific data
-                    if (data.type === 'poll') {
-                        if (data.poll_end_time) {
-                            const utcDate = new Date(data.poll_end_time); // this is in UTC
-                            // Convert to local time in correct format for datetime-local input
-                            const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
-                            const formatted = localDate.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
-                            
-                            document.getElementById('edit-poll-end-time').value = formatted;
-                        }
-                        
-                        // Set up poll options
-                        const optionsContainer = document.getElementById('edit-poll-options');
-                        optionsContainer.innerHTML = '';
-                        if (data.poll_options && data.poll_options.length > 0) {
-                            data.poll_options.forEach(option => {
-                                addPollOption(optionsContainer, option);
-                            });
-                        } else {
-                            // Add at least two default options if none exist
-                            addPollOption(optionsContainer, '');
-                            addPollOption(optionsContainer, '');
-                        }
-        
-                        // Add option button handler
-                        document.getElementById('edit-add-option').onclick = () => {
-                            addPollOption(optionsContainer, '');
-                        };
-                    } else {
-                        // Set editor content for non-poll posts
-                        window.editQuill.root.innerHTML = data.body || '';
-                    }
-        
-
-                    // Set subdepartment
-                    document.getElementById('edit-subdepartment').value = data.subdepartment;
-
-                    editModal.show();
-
-                    // Form submission handler
-                    const editForm = document.getElementById('edit-form');
-                    editForm.onsubmit = function(e) {
-                        e.preventDefault();
-                        const formData = new FormData();
-                        
-                        if (['question', 'poll'].includes(data.type)) {
-                            formData.append('title', document.getElementById('edit-title').value);
-                        }
-                        
-                        if (data.type === 'poll') {
-                            formData.append('poll_end_time', document.getElementById('edit-poll-end-time').value);
-                            const options = Array.from(document.querySelectorAll('#edit-poll-options input')).map(input => input.value);
-                            options.forEach(option => formData.append('poll_options[]', option));
-                        } else {
-                            formData.append('title', document.getElementById('edit-title').value); // Added title for all post types
-                            formData.append('body', window.editQuill.root.innerHTML);
-                        }
-                        
-                        formData.append('subdepartment', document.getElementById('edit-subdepartment').value);
-                        formData.append('type', data.type);
-
-                        submitEditForm(postId, formData, editModal);
-                    };
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Error loading post', 'danger');
-                });
-        }
-
-        // Helper function to add poll option
-        function addPollOption(container, value = '') {
-            const option = document.createElement('div');
-            option.className = 'poll-option mb-2 d-flex gap-2';
-            option.innerHTML = `
-                <input type="text" name="poll_options[]" class="form-control" value="${value}" required>
-                <button type="button" class="btn btn-outline-danger remove-option">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                    </svg>
-                </button>
-            `;
-            
-            option.querySelector('.remove-option').onclick = () => {
-                if (container.children.length > 2) {
-                    option.remove();
-                }
-            };
-            
-            container.appendChild(option);
-        }
-
-        // Helper function to submit the edit form
-        function submitEditForm(postId, formData, modal) {
-            // Convert poll end time from local to UTC before sending
-            if (formData.get('poll_end_time')) {
-                const localDate = new Date(formData.get('poll_end_time'));
-                const utcDateTime = localDate.toISOString();
-                formData.set('poll_end_time', utcDateTime);
-            }
-
-            fetch(`/components/edit-post/${postId}/`, {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-CSRFToken': getCookie('csrftoken') }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    modal.hide();
-                    allPosts = []; // Reset posts
-                    page = 1;
-                    displayedPostsCount = 0;
-                    loadMorePosts();
-                    showAlert('Post updated successfully');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Error updating post', 'danger');
-            });
-        }
-
-        // Delete post function
-        function deletePost(postId) {
-            if (confirm('Are you sure you want to delete this post?')) {
-                fetch(`/components/delete-post/${postId}/`, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'success') {
-                        allPosts = []; // Reset posts
-                        page = 1;
-                        displayedPostsCount = 0;
-                        loadMorePosts();
-                        showAlert('Post deleted successfully');
-                        location.reload();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Error deleting post', 'danger');
-                });
-            }
-        }
-
-        // Event listeners
-        postTypeFilter.addEventListener('change', () => displayFilteredPosts(true));
-        departmentFilter.addEventListener('change', () => displayFilteredPosts(true));
-        loadMoreBtn.addEventListener('click', () => displayFilteredPosts());
-
-        // Initial load
-        fetchDepartments();
-        window.addEventListener('load', loadMorePosts);
-    });
+        })
+        .catch(error => console.error('Error loading departments:', error));
+});
 </script>

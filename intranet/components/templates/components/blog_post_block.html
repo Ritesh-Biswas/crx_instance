@@ -1,13 +1,17 @@
 {% load wagtailcore_tags wagtailimages_tags %}
 
 {% if value.blog_post.add_post %}
-<form method="post" action="{% url 'components:blog_post_create' %}" class="w-100 mb-4" onsubmit="return populateBodyField()" enctype="multipart/form-data">
+<form hx-post="{% url 'components:blog_post_create' %}"
+      hx-target="#blog-post-list"
+      hx-swap="afterbegin"
+      hx-indicator="#form-spinner"
+      class="w-100 mb-4">
     {% csrf_token %}
     <div class="card rounded border rounded-lg p-4">
         <div class="mb-2">
             <div class="d-flex flex-wrap align-items-center gap-3">
                 <!-- Post type selector -->
-                <div class=" post-type-selector d-flex gap-3">
+                <div class="post-type-selector d-flex gap-3">
                     <label class="post-type-option">
                         <input type="radio" name="post_type" value="post" class="visually-hidden" checked>
                         <div class="option-content d-flex align-items-center gap-2 px-3 py-2">
@@ -43,15 +47,22 @@
                     </label>
                 </div>
                 
-                <!-- Department dropdown in the same row -->
+                <!-- Department dropdown -->
                 <div class="select-wrapper flex-grow-1 ms-auto" style="max-width: 280px;">
                     <select id="subdepartment-dropdown" name="subdepartment" class="form-select">
-                        
                         <option value="global">Global</option>
                     </select>
                 </div>
             </div>
         </div>
+
+        <!-- Title field -->
+        <div id="title-field" class="mb-3">
+            <label for="id_title" class="form-label text-secondary small mb-1">Post Title</label>
+            <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your post title">
+        </div>
+
+        <!-- Poll options container -->
         <div id="poll-options-container" class="mb-4" style="display: none;">
             <div class="poll-end-time mb-3">
                 <label class="form-label text-secondary small mb-1">Poll End Time</label>
@@ -87,11 +98,20 @@
                 Add Option
             </button>
         </div>
+
+        <!-- Hidden body field -->
         <textarea id="id_body" name="body" class="d-none"></textarea>
+        
+        <!-- Quill editor -->
         <div id="editor" class="text-body w-100 rounded-lg mb-4"></div>
         
+        <!-- Form buttons -->
         <div class="d-flex justify-content-end gap-3 mt-2">
-            <button type="button" id="close_editor" class="btn btn-light rounded-pill px-3">
+            <div id="form-spinner" class="spinner-border text-primary htmx-indicator" role="status" style="display: none;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <button type="button" id="close_editor" class="btn btn-light rounded-pill px-3"
+                    onclick="clearForm()">
                 <span>Cancel</span>
             </button>
             <button type="submit" class="btn btn-primary rounded-pill px-4">
@@ -102,333 +122,254 @@
 </form>
 {% endif %}
 
+<!-- Include HTMX -->
+<script src="https://unpkg.com/htmx.org@2.0.6"></script>
+
 <!-- Include Quill.js -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
 <script>
-
-    var quill = new Quill('#editor', {
-        theme: 'snow',
-        modules: {
-            toolbar: {
-                container: [
-                    [{ 'header': [1, 2, false] }],
-                    ['bold', 'italic', 'underline'],
-                    ['image', 'code-block']
-                ],
-                handlers: {
-                    'image': imageHandler
-                }
-            }
-        },
-        placeholder: 'Share your thoughts or ask a question...'
-    });
-
-
-    function imageHandler() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-    
-        input.onchange = () => {
-            const file = input.files[0];
-            const formData = new FormData();
-            formData.append('image', file);
-    
-            fetch('{% url "components:upload_image" %}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const range = quill.getSelection();
-                    quill.insertEmbed(range.index, 'image', data.url);
-                } else {
-                    console.error('Upload failed:', data.error);
-                    alert('Failed to upload image');
-                }
-            })
-            .catch(error => {
-                console.error('Error uploading image:', error);
-                alert('Error uploading image');
-            });
-        };
-    }
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+// Initialize Quill
+var quill = new Quill('#editor', {
+    theme: 'snow',
+    modules: {
+        toolbar: {
+            container: [
+                [{ 'header': [1, 2, false] }],
+                ['bold', 'italic', 'underline'],
+                ['image', 'code-block']
+            ],
+            handlers: {
+                'image': imageHandler
             }
         }
-        return cookieValue;
-    }
+    },
+    placeholder: 'Share your thoughts or ask a question...'
+});
 
-    function populateBodyField() {
-        const postType = document.querySelector('input[name="post_type"]:checked').value;
-        const title = document.getElementById('id_title')?.value.trim();
-    
-        // Validate based on post type
-        if (postType === 'poll') {
-            // Check for poll title
-            if (!title) {
-                alert('Please provide a question for your poll.');
-                return false;
-            }
+// Add form validation before HTMX request
+document.querySelector('form').addEventListener('htmx:validation:validate', function(evt) {
+    const postType = document.querySelector('input[name="post_type"]:checked').value;
+    const title = document.getElementById('id_title').value.trim();
+    const content = quill.root.innerHTML;
 
-                    // Validate poll end time
-                const pollEndTime = document.querySelector('input[name="poll_end_time"]').value;
-                
-                if (!pollEndTime) {
-                    alert('Please set when the poll should end.');
-                    return false;
-                }
+    if (postType === 'poll') {
+        if (!title) {
+            evt.preventDefault();
+            showAlert('Please provide a question for your poll.', 'danger');
+            return;
+        }
 
-                // Check if end time is in the future
-                if (new Date(pollEndTime) <= new Date()) {
-                    alert('Poll end time must be in the future.');
-                    return false;
-                }
+        const pollEndTime = document.querySelector('input[name="poll_end_time"]').value;
+        if (!pollEndTime) {
+            evt.preventDefault();
+            showAlert('Please set when the poll should end.', 'danger');
+            return;
+        }
 
-                // Check for poll options
-                const options = document.querySelectorAll('input[name="poll_options[]"]');
-                const validOptions = Array.from(options).filter(option => option.value.trim() !== '');
-                
-                if (validOptions.length < 2) {
-                    alert('Please provide at least two options for your poll.');
-                    return false;
-                }
+        if (new Date(pollEndTime) <= new Date()) {
+            evt.preventDefault();
+            showAlert('Poll end time must be in the future.', 'danger');
+            return;
+        }
 
-                return true;
-            } else {
-            // For posts and questions
-            const content = quill.root.innerHTML;
-            if (content.trim() === '<p><br></p>' || content.trim() === '') {
-                alert('Please add some content before publishing.');
-                return false;
-            }
-    
-            // Additional validation for questions
-            if (postType === 'question' && !title) {
-                alert('Please provide a title for your question.');
-                return false;
-            }
-    
-            document.getElementById('id_body').value = content;
-            return true;
+        const options = document.querySelectorAll('input[name="poll_options[]"]');
+        const validOptions = Array.from(options).filter(option => option.value.trim() !== '');
+        if (validOptions.length < 2) {
+            evt.preventDefault();
+            showAlert('Please provide at least two options for your poll.', 'danger');
+            return;
+        }
+    } else {
+        if (postType === 'question' && !title) {
+            evt.preventDefault();
+            showAlert('Please provide a title for your question.', 'danger');
+            return;
+        }
+
+        if (content.trim() === '<p><br></p>' || content.trim() === '') {
+            evt.preventDefault();
+            showAlert('Please add some content before publishing.', 'danger');
+            return;
         }
     }
+});
 
-    document.getElementById('close_editor').addEventListener('click', function() {
-        quill.root.innerHTML = '';
-    });
+// Add Quill content to form data before HTMX request
+document.body.addEventListener('htmx:configRequest', function(evt) {
+    if (evt.detail.elt.tagName === 'FORM') {
+        evt.detail.parameters['body'] = quill.root.innerHTML;
+    }
+});
 
-    // Fetch and populate subdepartments
-    document.addEventListener('DOMContentLoaded', function() {
-        const subdepartmentDropdown = document.getElementById('subdepartment-dropdown');
-        const currentPageId = '{{ page.id }}';
-        const isSubdepartmentPage = {{ page.specific.is_subdepartment_page|yesno:"true,false" }};
-        //console.log('Current page:', '{{ page.id }}');
-        //console.log('Is subdepartment:', '{{ page.specific.is_subdepartment_page|yesno:"true,false" }}');
-        
-        let url = '/components/subdepartments/';
-        if (isSubdepartmentPage) {
-            url += `?page_id=${currentPageId}`;
-        }
-        
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                //console.log('Fetched subdepartments:', data);
-                // Clear existing options except Global
-                while (subdepartmentDropdown.options.length > 1) {
-                    subdepartmentDropdown.remove(1);
-                }
-                
-                data.subdepartments.forEach(subdept => {
-                    const optionElement = document.createElement('option');
-                    optionElement.value = subdept.id;
-                    optionElement.textContent = subdept.name;
-                    if (isSubdepartmentPage && subdept.id === parseInt(currentPageId)) {
-                        optionElement.selected = true;
-                        // Hide the Global option if on subdepartment page
-                        subdepartmentDropdown.querySelector('option[value="global"]').style.display = 'none';
-                    }
-                    subdepartmentDropdown.appendChild(optionElement);
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching subdepartments:', error);
-            });
+// Handle successful post creation
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.successful && evt.detail.elt.tagName === 'FORM') {
+        clearForm();
+        showAlert('Post published successfully!', 'success');
+    }
+});
 
-        // Get the default selected radio (post)
-        const defaultPostType = document.querySelector('input[name="post_type"]:checked').value;
-        
-        // Define title labels
+// Handle post type changes
+document.querySelectorAll('input[name="post_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const titleLabel = document.querySelector('label[for="id_title"]');
+        const titleInput = document.getElementById('id_title');
+        const pollContainer = document.getElementById('poll-options-container');
+        const editor = document.getElementById('editor');
+        const quillToolbar = document.querySelector('.ql-toolbar');
+
+        // Update title field based on post type
         const titleLabels = {
             'post': 'Post Title',
             'question': 'Question Title',
             'poll': 'Poll Question'
         };
-        
-        // Create initial title field
-        const titleDiv = document.createElement('div');
-        titleDiv.id = 'title-field';
-        titleDiv.className = 'w-100 mb-3';
-        titleDiv.innerHTML = `
-            <label for="id_title" class="form-label text-secondary small mb-1">${titleLabels[defaultPostType]}</label>
-            <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your ${titleLabels[defaultPostType].toLowerCase()}" required>
-        `;
-        
-        // Insert after the post type selector
-        document.querySelector('.d-flex.flex-wrap.align-items-center.gap-3').insertAdjacentElement('afterend', titleDiv);
+        titleLabel.textContent = titleLabels[this.value];
+        titleInput.placeholder = `Enter your ${titleLabels[this.value].toLowerCase()}`;
+
+        // Show/hide appropriate sections
+        if (this.value === 'poll') {
+            pollContainer.style.display = 'block';
+            editor.style.display = 'none';
+            quillToolbar.style.display = 'none';
+        } else {
+            pollContainer.style.display = 'none';
+            editor.style.display = 'block';
+            quillToolbar.style.display = 'block';
+        }
     });
+});
 
-    // Replace the existing post type change event listener with this new one
-    document.querySelectorAll('input[name="post_type"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const dropdownContainer = document.querySelector('.d-flex.flex-wrap.align-items-center.gap-3');
-            const existingTitleField = document.getElementById('title-field');
-            const editor = document.getElementById('editor');
-            const quillToolbar = document.querySelector('.ql-toolbar');
-            
-            
-            // Remove existing title field if it exists
-            if (existingTitleField) {
-                existingTitleField.remove();
-            }
-            
-            if (this.value === 'question') {
-                // Create title field dynamically
-                const titleField = document.createElement('div');
-                titleField.id = 'title-field';
-                titleField.className = 'w-100 mb-3';
-                
-                titleField.innerHTML = `
-                    <label for="id_title" class="form-label text-secondary small mb-1">Question Title</label>
-                    <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your question title" required>
-                `;
-                
-                // Insert after the post type selector
-                dropdownContainer.insertAdjacentElement('afterend', titleField);
-            }
+// Add/remove poll options
+document.getElementById('add-option').addEventListener('click', function() {
+    const optionsContainer = document.getElementById('poll-options');
+    const newOption = document.createElement('div');
+    const optionCount = optionsContainer.children.length + 1;
+    
+    newOption.className = 'poll-option mb-2 d-flex gap-2';
+    newOption.innerHTML = `
+        <input type="text" name="poll_options[]" class="form-control" placeholder="Option ${optionCount}" required>
+        <button type="button" class="btn btn-outline-danger remove-option">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+        </button>
+    `;
+    
+    optionsContainer.appendChild(newOption);
+    updateRemoveButtons();
+});
 
-            if (this.value === 'poll') {
-                if (editor) editor.style.display = 'none';
-                if (quillToolbar) quillToolbar.style.display = 'none';
-            } else {
-                if (editor) editor.style.display = 'block';
-                if (quillToolbar) quillToolbar.style.display = 'block';
-
-                if (!window.quill) {
-                    window.quill = new Quill('#editor', {
-                        theme: 'snow',
-                        modules: {
-                            toolbar: {
-                                container: [
-                                    [{ 'header': [1, 2, false] }],
-                                    ['bold', 'italic', 'underline'],
-                                    ['image', 'code-block']
-                                ],
-                                handlers: {
-                                    'image': imageHandler
-                                }
-                            }
-                        },
-                        placeholder: 'Share your thoughts or ask a question...'
-                    });
-                }
-            }
-
-        });
-    });
-
-    // Add this to the existing script section
-    document.querySelectorAll('input[name="post_type"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const pollContainer = document.getElementById('poll-options-container');
-            const titleField = document.getElementById('title-field');
-            const editor = document.getElementById('editor');
-            
-            // Define title labels based on post type
-            const titleLabels = {
-                'post': 'Post Title',
-                'question': 'Question Title',
-                'poll': 'Poll Question'
-            };
-            
-            // Create or update title field
-            if (!titleField) {
-                const titleDiv = document.createElement('div');
-                titleDiv.id = 'title-field';
-                titleDiv.className = 'w-100 mb-3';
-                titleDiv.innerHTML = `
-                    <label for="id_title" class="form-label text-secondary small mb-1">${titleLabels[this.value]}</label>
-                    <input type="text" id="id_title" name="title" class="form-control" placeholder="Enter your ${titleLabels[this.value].toLowerCase()}" required>
-                `;
-                document.querySelector('.d-flex.flex-wrap.align-items-center.gap-3').insertAdjacentElement('afterend', titleDiv);
-            } else {
-                // Update existing title field label and placeholder
-                titleField.querySelector('label').textContent = titleLabels[this.value];
-                titleField.querySelector('input').placeholder = `Enter your ${titleLabels[this.value].toLowerCase()}`;
-            }
-
-            if (this.value === 'poll') {
-                pollContainer.style.display = 'block';
-                editor.style.display = 'none';
-            } else {
-                pollContainer.style.display = 'none';
-                editor.style.display = 'block';
-            }
-        });
-    });
-
-    // Add/remove poll options
-    document.getElementById('add-option').addEventListener('click', function() {
-        const optionsContainer = document.getElementById('poll-options');
-        const newOption = document.createElement('div');
-        const optionCount = optionsContainer.children.length + 1;
+function updateRemoveButtons() {
+    const options = document.querySelectorAll('.poll-option');
+    options.forEach(option => {
+        const removeBtn = option.querySelector('.remove-option');
+        removeBtn.style.display = options.length > 2 ? 'block' : 'none';
         
-        newOption.className = 'poll-option mb-2 d-flex gap-2';
-        newOption.innerHTML = `
-            <input type="text" name="poll_options[]" class="form-control" placeholder="Option ${optionCount}" required>
-            <button type="button" class="btn btn-outline-danger remove-option">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                </svg>
-            </button>
-        `;
-        
-        optionsContainer.appendChild(newOption);
-        updateRemoveButtons();
+        removeBtn.onclick = function() {
+            if (options.length > 2) {
+                option.remove();
+                updateRemoveButtons();
+            }
+        };
     });
+}
 
-    function updateRemoveButtons() {
-        const options = document.querySelectorAll('.poll-option');
-        options.forEach(option => {
-            const removeBtn = option.querySelector('.remove-option');
-            removeBtn.style.display = options.length > 2 ? 'block' : 'none';
-            
-            removeBtn.onclick = function() {
-                if (options.length > 2) {
-                    option.remove();
-                    updateRemoveButtons();
-                }
-            };
-        });
+function clearForm() {
+    quill.root.innerHTML = '';
+    document.querySelector('form').reset();
+    const titleField = document.getElementById('id_title');
+    if (titleField) titleField.value = '';
+    
+    // Reset post type to 'post'
+    const postRadio = document.querySelector('input[name="post_type"][value="post"]');
+    if (postRadio) {
+        postRadio.checked = true;
+        postRadio.dispatchEvent(new Event('change'));
     }
+}
+
+function showAlert(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    alertDiv.style.zIndex = "1050";
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+// Image handler for Quill
+function imageHandler() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = () => {
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch('{% url "components:upload_image" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const range = quill.getSelection();
+                quill.insertEmbed(range.index, 'image', data.url);
+            } else {
+                console.error('Upload failed:', data.error);
+                showAlert('Failed to upload image', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error uploading image:', error);
+            showAlert('Error uploading image', 'danger');
+        });
+    };
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Load departments
+document.addEventListener('DOMContentLoaded', function() {
+    const subdepartmentDropdown = document.getElementById('subdepartment-dropdown');
+    
+    fetch('/components/subdepartments/')
+        .then(response => response.json())
+        .then(data => {
+            data.subdepartments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.id;
+                option.textContent = dept.name;
+                subdepartmentDropdown.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading departments:', error));
+});
 </script>
 
 <style>
@@ -564,5 +505,14 @@
             margin-top: 0.5rem;
             margin-left: 0 !important;
         }
+    }
+    .htmx-indicator {
+        display: none;
+    }
+    .htmx-request .htmx-indicator {
+        display: inline-block;
+    }
+    .htmx-request.htmx-indicator {
+        display: inline-block;
     }
 </style>
