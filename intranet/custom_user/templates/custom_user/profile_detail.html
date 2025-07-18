@@ -86,6 +86,7 @@
                             </h5>
                             <small class="text-muted fw-bold">Following</small>
                         </div>
+                        {% if request.user.username != username %}
                         <div class="follow-info my-2 text-center mx-2">
                             <button class="btn btn-outline-primary"
                                     hx-post="{% url 'custom_user:follow-toggle' username %}"
@@ -94,6 +95,7 @@
                                 {% if is_following %}Unfollow{% else %}Follow{% endif %}
                             </button>
                         </div>
+                        {% endif %}
                     </div>
                     <ul class="info-list">
                         <li><span>Email:</span> {{email}}</li>
