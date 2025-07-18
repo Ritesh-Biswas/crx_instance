@@ -1,0 +1,295 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags %}
+
+{% block frontend_assets %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="department-page">
+    <div class="container py-5">
+        {% block content_body %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <button onclick="window.history.back()" class="btn btn-outline-primary btn-sm mb-2">
+                    <i class="fas fa-arrow-left me-1"></i> Back
+                </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a href="{% pageurl page.get_parent %}" class="text-decoration-none"><i class="fas fa-home"></i>{{ page.get_parent.title }}</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ page.title }}</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+        {% if not self.cover_image %}
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h1 class="text-primary fw-bold display-4 mb-3">{{ page.title }}</h1>
+                {% if page.subtitle %}
+                <p class="lead text-muted mb-4">{{ page.subtitle }}</p>
+                {% endif %}
+                <hr class="my-4 mx-auto" style="width: 50%; border-top: 2px solid var(--bs-primary);">
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="department-content mb-5">
+                    {{ page.body }}
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <!-- Sub-Departments Section -->
+                {% if subdepartments %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Sub-Departments</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for subpage in subdepartments %}
+                            <li class="list-group-item d-flex align-items-center border-0">
+                                <i class="fas fa-building text-primary me-2"></i>
+                                <a href="{% pageurl subpage %}" class="text-decoration-none">{{ subpage.title }}</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Announcements Section -->
+                {% if announcements %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Announcements</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for announcement in announcements %}
+                            <li class="list-group-item d-flex align-items-center border-0">
+                                <i class="fas fa-bullhorn text-primary me-2"></i>
+                                <div>
+                                    <a href="{% pageurl announcement %}" class="text-decoration-none">{{ announcement.title }}</a>
+                                    <div><small class="text-muted">{{ announcement.announcement_date|date:"M d, Y" }}</small></div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="card shadow-sm mb-4">
+                    {% for block in page.page_content %}
+                    {% if block.block_type == 'my_workspace_card' %}
+                    {% include_block block %}
+                    {% endif %}
+                {% endfor %}
+                </div>
+                
+                <!-- FAQs Section -->
+                {% if faqs %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Frequently Asked Questions</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for faq in faqs %}
+                            <li class="list-group-item d-flex align-items-center border-0">
+                                <i class="fas fa-question-circle text-primary me-2"></i>
+                                <a href="{% pageurl faq %}" class="text-decoration-none">{{ faq.title }}</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        
+        
+        {% endblock %}
+    </div>
+</div>
+
+<style>
+    /* Add to existing style section */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.hover\:bg-gray-50:hover {
+    background-color: #f9fafb;
+}
+
+.hover\:text-primary:hover {
+    color: var(--bs-primary);
+}
+
+.no-underline {
+    text-decoration: none;
+    color: inherit;
+}
+
+.no-underline:hover {
+    text-decoration: none;
+    color: inherit;
+}
+    .hero-fg{
+        padding: 0 0
+    }
+    .card {
+        border: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .card-header {
+        border-bottom: none;
+        padding: 1rem 1.25rem;
+    }
+    
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-dark, #0056b3) 100%) !important;
+    }
+    
+    .card-header h3 {
+        font-weight: 600;
+    }
+    
+    .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* List group enhancements */
+    .list-group-item {
+        padding: 0.75rem 1rem;
+        border-radius: 0.25rem !important;
+        margin-bottom: 0.5rem;
+        transition: background-color 0.2s ease;
+    }
+    
+    .list-group-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .list-group-item:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.05);
+    }
+    
+    .list-group-item i {
+        font-size: 1.1rem;
+    }
+    
+    .list-group-flush .list-group-item {
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0 !important;
+    }
+    
+    /* Links styling */
+    .list-group-item a {
+        color: var(--bs-body-color);
+        transition: color 0.2s ease;
+    }
+    
+    .list-group-item:hover a {
+        color: var(--bs-primary);
+    }
+    
+    /* Announcement date styling */
+    .list-group-item .text-muted {
+        font-size: 0.85rem;
+    }
+    
+    /* Heading styles */
+    h1.display-4 {
+        font-weight: 700;
+    }
+    
+    /* Department content container */
+    .department-content {
+        line-height: 1.7;
+    }
+    
+    /* Responsive improvements */
+    @media (max-width: 991.98px) {
+        .hero-bg {
+            height: 300px !important;
+        }
+        
+        .col-lg-4 {
+            margin-top: 2rem;
+        }
+    }
+    
+    /* Breadcrumb styling for sub-pages */
+    .breadcrumb {
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .breadcrumb-item.active {
+        font-weight: 500;
+    }
+    
+    .breadcrumb-item a {
+        color: var(--bs-primary);
+    }
+    
+    /* Back button styling */
+    .btn-outline-primary {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-primary:hover {
+        transform: translateX(-3px);
+        box-shadow: 0 4px 8px rgba(var(--bs-primary-rgb), 0.2);
+    }
+    
+    /* For Sub FAQ pages */
+    .accordion-item {
+        border: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1rem;
+        border-radius: 0.5rem !important;
+        overflow: hidden;
+    }
+    
+    .accordion-button {
+        padding: 1.25rem;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        color: var(--bs-primary);
+        background-color: rgba(var(--bs-primary-rgb), 0.08);
+        box-shadow: none;
+    }
+    
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+    
+    .accordion-body {
+        padding: 1.25rem;
+        background-color: rgba(var(--bs-light-rgb), 0.3);
+    }
+</style>
+{% endblock %}

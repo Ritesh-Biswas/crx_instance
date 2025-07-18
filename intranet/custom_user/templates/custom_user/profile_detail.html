@@ -1,0 +1,423 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags static %}
+
+{% block frontend_assets %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Breadcrumb -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <button onclick="window.history.back()" class="btn btn-outline-primary btn-sm mb-2">
+                <i class="fas fa-arrow-left me-1"></i> Back
+            </button>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home"></i> Home
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Profile Details</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+
+    <div class="profile-container">
+        <div class="profile-card">
+            <div class="cover-photo">
+                <img src="{{ cover_photo|default:'\static\img\default.png'}}" alt="Cover Photo" class="cover-img">
+            </div>
+            <div class="profile-header">
+                <img src="{{ profile_picture|default:'\static\img\default.png'}}" alt="Profile Image" class="profile-img">
+            </div>
+            <div class="profile-body">
+                <div class="profile-details">
+                    <h3>{{full_name}}</h3>
+                    <div class="d-flex align-items-center justify-content-center mt-3 my-2">
+                        <div class="text-center mx-2">
+                            <h5 class="mb-0 fw-bold me-2">
+                                <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#followersModal">
+                                    {{ follower_count }}
+                                </a>
+                            </h5>
+                            <small class="text-muted fw-bold">Followers</small>
+                        </div>
+                        <div class="text-center mx-2">
+                            <h5 class="mb-0 fw-bold">
+                                <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#followingModal">
+                                    {{ following_count }}
+                                </a>
+                            </h5>
+                            <small class="text-muted fw-bold">Following</small>
+                        </div>
+                        <div class="follow-info my-2 text-center mx-2">
+                            <button class="btn btn-outline-primary" id="follow-btn"
+                                data-username="{{ username }}"
+                                data-following="{{ is_following|yesno:'true,false' }}">
+                                {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                    <ul class="info-list">
+                        <li><span>Email:</span> {{email}}</li>
+                    </ul>
+                </div>
+                <div class="about-section">
+                    <h4>About</h4>
+                    <p>{{about}}</p>
+                </div>
+            </div>
+            
+            <!-- Separate expertise section -->
+            <div class="expertise-tags">
+                <h5>Expertise/Skills</h5>
+                <div class="tags-container">
+                    {% for tag in expertise %}
+                        <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Info Card -->
+        <div class="additional-info-card">
+
+            <div class="manager-reports-card">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="fw-bold">Manager & Reports</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if manager %}
+                            <p class="text-uppercase text-muted fw-bold small mb-2 ms-2">Manager</p>
+                            <div class="d-flex mb-3">
+                                <img src="{{ manager.profile_picture|default:'/static/img/default.png' }}" 
+                                     alt="Manager Photo" 
+                                     class="rounded-circle me-4 ms-3" 
+                                     width="60" height="60">
+                                <div class="ms-3">
+                                    <h6 class="fw-bold mb-0 d-flex align-items-center">
+                                        {{ manager.full_name }}
+                                    </h6>
+                                    <p class="text-muted small mb-1">{{ manager.designation }}</p>
+                                    <a href="{% url 'custom_user:org_chart' username %}" class="btn btn-sm btn-primary">View Org Chart</a>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center my-3">No manager assigned</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="details-card mt-3 small-card">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-item">
+                            <strong>D.O.B:</strong>
+                            <p class="mb-0">{{ date_of_birth|default:"Not specified" }}</p>
+                        </div>
+                        <div class="info-item">
+                            <strong>Job Title:</strong>
+                            <p class="mb-0">{{ designation|default:"Not specified" }}</p>
+                        </div>
+                        <div class="info-item">
+                            <strong>Hire date:</strong>
+                            <p class="mb-0">{{ joining_date|default:"Not specified" }}</p>
+                        </div>
+                        <div class="info-item">
+                            <strong>Employee ID:</strong>
+                            <p class="mb-0">{{ employee_number|default:"Not specified" }}</p>
+                        </div>
+                        <div class="info-item">
+                            <strong>Local time:</strong>
+                            <p class="mb-0" id="local-time">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Followers Modal -->
+<!-- Followers Modal -->
+<div class="modal fade" id="followersModal" tabindex="-1" aria-labelledby="followersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="max-height: 90vh; overflow: hidden;">
+        <div class="modal-header">
+          <h5 class="modal-title" id="followersModalLabel">Followers</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" style="overflow-y: auto;">
+          {% if followers_list %}
+            <ul class="list-group">
+              {% for follower in followers_list %}
+                <li class="list-group-item d-flex align-items-center">
+                  <img src="{% if follower.user and follower.user.wagtail_userprofile and follower.user.wagtail_userprofile.avatar %}{{ follower.user.wagtail_userprofile.avatar.url }}{% else %}{% static 'img/default.png' %}{% endif %}" class="rounded-circle me-3" width="40" height="40">
+                  <a href="{% url 'custom_user:profile-detail' follower.user.username %}">
+                    {{ follower.user.get_full_name|default:follower.user.username }}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted text-center">No followers yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Following Modal -->
+  <div class="modal fade" id="followingModal" tabindex="-1" aria-labelledby="followingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="max-height: 90vh; overflow: hidden;">
+        <div class="modal-header">
+          <h5 class="modal-title" id="followingModalLabel">Following</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" style="overflow-y: auto;">
+          {% if following_list %}
+            <ul class="list-group">
+              {% for following in following_list %}
+                <li class="list-group-item d-flex align-items-center">
+                  <img src="{% if following.user and following.user.wagtail_userprofile and following.user.wagtail_userprofile.avatar %}{{ following.user.wagtail_userprofile.avatar.url }}{% else %}{% static 'img/default.png' %}{% endif %}" class="rounded-circle me-3" width="40" height="40">
+                  <a href="{% url 'custom_user:profile-detail' following.user.username %}">
+                    {{ following.user.get_full_name|default:following.user.username }}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted text-center">Not following anyone yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  
+{% endblock %}
+
+{% block custom_assets %}
+    {{ block.super }}
+    <style>
+        .card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .rounded-circle { border: 3px solid #0d6efd; }
+        .small-card {
+            font-size: 0.875rem; /* or 14px, adjust as needed */
+        }
+        body {
+            background-color: #f4f4f4;
+        }
+        .profile-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            display: flex;
+            gap: 30px;
+            padding: 0 20px;
+        }
+        .profile-card {
+            flex: 1;
+            margin: 0; /* Override previous margin */
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .cover-photo {
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cover-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-header {
+            padding: 40px 20px 20px;
+            text-align: center;
+            position: relative;
+            margin-top: -10px;  /* Pull header up to overlap with cover photo */
+        }
+
+        .profile-img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            margin: -100px auto;  /* Negative margin to pull image up over cover photo */
+            display: block;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .profile-body {
+            padding: 20px;
+        }
+        .profile-details {
+            text-align: center;
+        }
+        .profile-details h3 {
+            margin-bottom: 10px;
+        }
+        .info-list {
+            list-style: none;
+            padding: 0;
+            text-align: center;
+        }
+        .info-list li {
+            padding: 8px;
+            font-size: 16px;
+        }
+        .info-list li span {
+            font-weight: bold;
+        }
+        .about-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .expertise-tags {
+            margin-top: 10px;
+            padding: 15px;
+            background: #fff;
+            text-align: left;
+            border-top: 1px solid #eee;
+        }
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: left;
+            margin-top: 15px;
+            padding: 0 20px;
+        }
+        .tag {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        .tag:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .additional-info-card {
+            width: 300px;
+            align-self: flex-start;
+        }
+        .additional-info-card .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        .info-item i {
+            width: 20px;
+        }
+        .social-links {
+            text-align: center;
+        }
+        .social-links h6 {
+            margin-bottom: 15px;
+        }
+        @media (max-width: 768px) {
+            .profile-container {
+                flex-direction: column;
+            }
+            .additional-info-card {
+                width: 100%;
+            }
+        }
+        .breadcrumb {
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .breadcrumb-item.active {
+        font-weight: 500;
+    }
+    
+    .breadcrumb-item a {
+        color: var(--bs-primary);
+    }
+    
+    /* Back button styling */
+    .btn-outline-primary {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-primary:hover {
+        transform: translateX(-3px);
+        box-shadow: 0 4px 8px rgba(var(--bs-primary-rgb), 0.2);
+    }
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            function updateLocalTime() {
+                const now = new Date();
+                const options = {
+                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+                };
+                const formattedTime = now.toLocaleString(undefined, options);
+                document.getElementById('local-time').textContent = formattedTime;
+            }
+            updateLocalTime();
+            setInterval(updateLocalTime, 1000);
+    
+            const followBtn = document.getElementById("follow-btn");
+            followBtn?.addEventListener("click", function () {
+                const username = this.dataset.username;
+                const isFollowing = this.dataset.following === "true";
+                fetch(`/custom_user/follow-toggle/${username}/`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "followed") {
+                        followBtn.textContent = "Unfollow";
+                        followBtn.dataset.following = "true";
+                    } else if (data.status === "unfollowed") {
+                        followBtn.textContent = "Follow";
+                        followBtn.dataset.following = "false";
+                    }
+
+                });
+                window.location.reload();
+            });
+        });
+    </script>
+{% endblock %}
+

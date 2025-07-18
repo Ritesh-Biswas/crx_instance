@@ -1,0 +1,108 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags %}
+
+{% block frontend_assets %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+{% endblock %}
+
+
+{% block content %}
+<div class="faq-page">
+    <div class="container py-5">
+        {% block content_body %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <button onclick="window.history.back()" class="btn btn-outline-primary btn-sm mb-2">
+                    <i class="fas fa-arrow-left me-1"></i> Back
+                </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a href="/" class="text-decoration-none"><i class="fas fa-home"></i> Home</a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{% pageurl page.get_parent %}" class="text-decoration-none">{{ page.get_parent.title }}</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ page.title }}</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+        
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h1 class="text-primary fw-bold display-4 mb-3">{{ page.title }}</h1>
+                <p class="lead text-muted">Frequently Asked Questions for {{ page.get_parent.title }}</p>
+                <hr class="my-4 mx-auto" style="width: 50%; border-top: 2px solid var(--bs-primary);">
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-10 mx-auto">
+                <div class="faq-content">
+                    <div class="accordion" id="faqAccordion">
+                        {% for block in page.faq_items %}
+                            {% if block.block_type == 'faq_item' %}
+                            <div class="accordion-item mb-3 shadow-sm">
+                                <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                                    <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}" aria-expanded="false" aria-controls="collapse{{ forloop.counter }}">
+                                        {{ block.value.question }}
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse" aria-labelledby="heading{{ forloop.counter }}" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        {{ block.value.answer|richtext }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+        
+        {% comment %} <div class="row mt-5">
+            <div class="col-12">
+                <a href="{% pageurl page.get_parent %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i> Back to {{ page.get_parent.title }}
+                </a>
+            </div>
+        </div> {% endcomment %}
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_assets %}
+{{ block.super }}
+<style>
+    .breadcrumb {
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .breadcrumb-item.active {
+        font-weight: 500;
+    }
+    
+    .breadcrumb-item a {
+        color: var(--bs-primary);
+    }
+    
+    /* Back button styling */
+    .btn-outline-primary {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-primary:hover {
+        transform: translateX(-3px);
+        box-shadow: 0 4px 8px rgba(var(--bs-primary-rgb), 0.2);
+    }
+    
+</style>
+{% endblock %}

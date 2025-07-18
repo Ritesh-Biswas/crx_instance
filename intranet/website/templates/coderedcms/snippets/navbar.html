@@ -1,13 +1,12 @@
 {% load wagtailcore_tags wagtailsettings_tags wagtailimages_tags coderedcms_tags i18n website_tags %}
 {% wagtail_site as site %}
-<nav class="navbar navbar-expand-lg bg-dark" data-bs-theme="dark">
-  <div class="container">
+{% django_setting "CRX_DISABLE_LAYOUT" as disable_layout %}
 
-    {# Allow the Logo to be user-customizable via the CRX Settings in the Wagtail Admin. #}
-
-    <a class="navbar-brand" href="/">
-      {% django_setting "CRX_DISABLE_LAYOUT" as disable_layout %}
-      {% if not disable_layout and settings.coderedcms.LayoutSettings.logo %}
+{% if not disable_layout %}
+<nav class="navbar navbar-expand-lg bg-dark {% get_navbar_css %}" data-bs-theme="dark">
+  <div class="container{% if settings.coderedcms.LayoutSettings.navbar_content_fluid %}-fluid{% endif %}">
+    <a class="navbar-brand " style="color: white;" href="/">
+      {% if settings.coderedcms.LayoutSettings.logo %}
       {% image settings.coderedcms.LayoutSettings.logo original format-webp preserve-svg as logo %}
       <img src="{{logo.url}}" alt="{{site.site_name}}">
       {% else %}
@@ -21,23 +20,100 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbar">
-
-      {# Loop through all Navbar snippets and dynamically render the `content` StreamField. #}
-
-      {% get_website_navbars as navbars %}
+      {% if settings.coderedcms.LayoutSettings.site_navbar %}
+      {% get_navbars as navbars %}
       {% for navbar in navbars %}
-      <div class="navbar-nav">
-        {% for item in navbar.content %}
-        {% include_block item with li_class="nav-item" a_class="nav-link" %}
+      <ul class="navbar-nav {{navbar.custom_css_class}}" {% if navbar.custom_id %}id="{{navbar.custom_id}}" {% endif %}>
+        {% for item in navbar.menu_items %}
+        {% include_block item with liclass="nav-item" aclass="nav-link" ga_event_category="Navbar" %}
         {% endfor %}
-      </div>
+        hi
+      </ul>
       {% endfor %}
+      {% endif %}
 
       <div class="navbar-nav ms-auto">
+        {% if settings.coderedcms.LayoutSettings.navbar_search %}
+        <form class="d-flex" role="search" action="{% url 'crx_search' %}" method="GET">
+          {% load django_bootstrap5 %}
+          {% get_searchform request as form %}
+          {% for field in form %}
+          {% bootstrap_field field show_label=False wrapper_class=None success_css_class=None server_side_validation=False %}
+          {% endfor %}
+          <button class="btn btn-outline-primary ms-2" type="submit">{% trans "Search" %}</button>
+        </form>
+        {% else %}
         <div class="nav-item">
-          <a href="{% url 'crx_search' %}" class="nav-link">Search</a>
+          <a href="{% url 'crx_search' %}" class="nav-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
+              <path d="M10 2a8 8 0 106.32 13.78l4.35 4.35a1 1 0 001.41-1.41l-4.35-4.35A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/>
+            </svg>
+          </a>
         </div>
+        {% endif %}
+
+        {% if request.user.is_authenticated %}
+        <div class="nav-item dropdown">
+          <button class="nav-link dropdown-toggle profile-toggle d-flex align-items-center p-2" data-bs-toggle="dropdown" style="color: white;">
+            <div class="rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; {% if not profile_image %}background-color: var(--bs-secondary);{% endif %}">
+              {% if request.user.wagtail_userprofile.avatar %}
+                {% if request.user.wagtail_userprofile.avatar|is_wagtail_image %}
+                  {% image request.user.wagtail_userprofile.avatar fill-32x32-c100 format-webp as profile_image %}
+                  <img src="{{ profile_image.url }}" alt="{{ request.user.get_full_name }}" class="rounded-circle" width="32" height="32">
+                {% else %}
+                  <img src="{{ request.user.wagtail_userprofile.avatar.url }}" alt="{{ request.user.get_full_name }}" class="rounded-circle" width="32" height="32">
+                {% endif %}
+              {% elif request.user.profile_picture %}
+                <img src="{{ request.user.profile_picture.url }}" alt="{{ request.user.get_full_name }}" class="rounded-circle" width="32" height="32">
+              {% else %}
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                </svg>
+              {% endif %}
+            </div>
+            {% if request.user.get_full_name %}
+            <span class="me-1 text-white">{{ request.user.get_full_name }}</span>
+            {% else %}
+            <span class="me-1">{{ request.user }}</span>
+            {% endif %}
+            {% comment %} <span class="me-1">{{ request.user.get_full_name}}</span> {% endcomment %}
+          </button>
+          <div class="dropdown-menu dropdown-menu-end profile-dropdown mt-2">
+            {% if request.user.is_staff %}
+            <a href="{% url 'wagtailadmin_home' %}" class="dropdown-item">CMS Control Pannel</a>
+            {% endif %}
+            {% if request.user.is_superuser %}
+            <a href="/myadmin/" class="dropdown-item">Admin Control Pannel</a>
+            {% endif %}
+            <a href="/admin/account/" class="dropdown-item">Manage Profile</a>
+            <a href="{% url 'account_logout' %}" class="dropdown-item">Logout</a>
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
 </nav>
+
+{# Navbar offset #}
+{% block navbar_offset %}
+{% if settings.coderedcms.LayoutSettings.navbar_fixed %}
+{% if settings.coderedcms.LayoutSettings.logo %}
+<div class="{{settings.coderedcms.LayoutSettings.navbar_format}}-fixed-img-offset {{settings.coderedcms.LayoutSettings.navbar_collapse_mode}}"></div>
+{% else %}
+<div class="{{settings.coderedcms.LayoutSettings.navbar_format}}-fixed-offset {{settings.coderedcms.LayoutSettings.navbar_collapse_mode}}"></div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% else %}
+
+<nav class="navbar navbar-expand-lg bg-dark" data-bs-theme="dark">
+  <div class="container">
+    <a class="navbar-brand text-white" href="/">
+      {{site.site_name}}
+    </a>
+  </div>
+</nav>
+
+{% endif %}

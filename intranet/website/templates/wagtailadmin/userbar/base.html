@@ -1,0 +1,22 @@
+{% extends "wagtailadmin/userbar/base.html" %}
+{% load static  wagtailcore_tags wagtailsettings_tags wagtailimages_tags coderedcms_tags website_tags %}
+{% wagtail_site as site %}
+{% django_setting "CRX_DISABLE_LAYOUT" as disable_layout %}
+
+
+{% block item_content %}
+    {% include "wagtailadmin/userbar/item_admin.html" %}
+{% endblock %}
+
+
+{% block branding_logo %}
+
+    {% if settings.coderedcms.LayoutSettings.logo %}
+    hello
+        {% image settings.coderedcms.LayoutSettings.logo fill-80x80 original format-webp preserve-svg as logo %}
+        <img src="{{ logo.url }}" alt="{{ site.site_name }}" width="80" style="border-radius: 50%;">
+    {% else %}
+        <img src="{% static 'website/wagtailadmin/images/admin.png' %}" alt="{{ site.site_name }}" width="80">
+    {% endif %}
+{% endblock %}
+

@@ -1,0 +1,33 @@
+{% extends "wagtailusers/users/edit.html" %}
+{% load static %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'wagtailtagging/css/tagit.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script src="{% static 'wagtailadmin/js/vendor/jquery.tagit.js' %}"></script>
+    <script>
+        $(function() {
+            $('#id_expertise').tagit({
+                autocomplete: {
+                    source: '/admin/tag-autocomplete/'
+                }
+            });
+        });
+    </script>
+{% endblock %}
+
+
+{% block extra_fields %}
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.is_staff %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.about %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.designation %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.joining_date class="w-field--date"  %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.date_of_birth class="w-field--date" %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.expertise class="w-field--tagit" %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.employee_number %}</li>
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.manager %}</li>
+{% endblock extra_fields %}

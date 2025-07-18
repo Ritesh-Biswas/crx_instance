@@ -1,0 +1,110 @@
+{% extends "coderedcms/pages/base.html" %}
+{% load static %}
+{% load widget_tweaks %}
+{% load socialaccount %}
+{% load coderedcms_tags %}
+{% load wagtailimages_tags %}
+{% load wagtailsettings_tags %}
+{% block content %}
+{% get_settings %}
+
+<div class="container-fluid min-vh-100 p-0">
+  <div class="row g-0 min-vh-100">
+    <!-- Left side (empty for now) - Hidden on mobile -->
+  <div class="col-md-6 d-none d-md-block" style="background-color:{{settings.components.CustomLoginSettings.background_color}}">
+    <div class="d-flex flex-column align-items-center justify-content-center h-100">
+        {% if settings.components.CustomLoginSettings.logo %}
+            {% image settings.components.CustomLoginSettings.logo original as logo_image %}
+            <img src="{{ logo_image.url }}" alt="Company Logo" style="max-width: 200px; height: auto;">
+        {% endif %}
+        <h1 class="display-2 fw-bold text-center" style="color: {{settings.components.CustomLoginSettings.text_color}};">
+          
+        {{ settings.components.CustomLoginSettings.title }}</h1>
+    </div>
+</div>
+
+    <!-- Right side (Signup form) -->
+    <div class="col-md-6 col-12 d-flex align-items-center justify-content-center bg-white">
+      <div class="card shadow-sm border-0 w-100" style="max-width: 450px;">
+        <div class="card-body p-5">
+          <div class="text-center mb-4">
+            <h1 class="h3 mb-3 font-weight-normal text-dark">Welcome to Intranet</h1>
+            <p class="text-muted">Sign in to access your account</p>
+          </div>
+          
+          {% if messages or form.errors %}
+          <div class="mb-4">
+            {% if form.errors %}
+              <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Login failed!</strong> Please check your credentials and try again.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endif %}
+            {% for message in messages %}
+              <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        
+          <form method="post" class="mb-4">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="id_username" class="form-label">Username</label>
+              <input type="text" name="username" id="id_username" class="form-control" placeholder="Enter your username" required>
+            </div>
+            <div class="mb-3">
+              <label for="id_password" class="form-label">Password</label>
+              <input type="password" name="password" id="id_password" class="form-control" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn w-100 py-2" style="background-color: {{settings.components.CustomLoginSettings.background_color}}; color: white;">Sign In</button>
+          </form>
+        
+          <div class="text-center my-3">
+            <span class="text-muted position-relative">
+              <span class="px-3 bg-white position-relative z-1">Or continue with</span>
+              <div class="position-absolute top-50 start-0 end-0 border-top z-0" style="transform: translateY(-50%);"></div>
+            </span>
+          </div>
+        
+          <div class="row g-2">
+            {% if google_social_app_exists %}
+            <div class="col-6">
+              <a href="{% provider_login_url 'google' %}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-1 7.28-2.69l-3.57-2.77c-.99.69-2.26 1.1-3.71 1.1-2.87 0-5.3-1.94-6.17-4.54H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.83 14.11c-.22-.69-.35-1.43-.35-2.11s.13-1.42.35-2.11V7.05H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.95l3.65-2.84z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.16-3.16C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.65 2.84c.87-2.6 3.3-4.54 6.17-4.54z" fill="#EA4335"/>
+                </svg>
+                Google
+              </a>
+            </div>
+            {% endif %}
+            {% if microsoft_social_app_exists %}
+            <div class="col-6">
+              <a href="{% provider_login_url 'microsoft' %}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" fill="currentColor" class="me-2">
+                  <path d="M0 0h11v11H0z" fill="#f3f3f3"/>
+                  <path d="M12 0h11v11H12z" fill="#f3f3f3"/>
+                  <path d="M0 12h11v11H0z" fill="#f3f3f3"/>
+                  <path d="M12 12h11v11H12z" fill="#f3f3f3"/>
+                  <path d="M1 1h9v9H1z" fill="#f35325"/>
+                  <path d="M13 1h9v9H13z" fill="#81bc06"/>
+                  <path d="M1 13h9v9H1z" fill="#05a6f0"/>
+                  <path d="M13 13h9v9H13z" fill="#ffba08"/>
+                </svg>
+                Microsoft
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

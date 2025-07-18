@@ -36,3 +36,50 @@ urlpatterns = [
     # of your site, rather than the site root:
     #    path("pages/", include(crx_urls)),
 ]
+
+
+# fmt: off
+if settings.DEBUG:
+    from django.conf.urls.static import static
+
+    # Serve static and media files from development server
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)  # type: ignore
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # type: ignore
+# fmt: on
+
+
+from django.contrib import admin
+from allauth.socialaccount.models import SocialToken, SocialAccount, SocialApp, EmailAddress
+from comment.models import Follower
+
+admin.site.unregister(Follower)
+
+# Base admin mixin for tenant restrictions
+class TenantRestrictedAdminMixin:
+    def has_module_permission(self, request):
+        if request.user.groups.filter(name="Tenant").exists():
+            return False
+        return super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.groups.filter(name="Tenant").exists():
+            return False
+        return super().has_view_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.groups.filter(name="Tenant").exists():
+            return False
+        return super().has_change_permission(request, obj)
+
+class CustomEmailAddressAdmin(TenantRestrictedAdminMixin, admin.ModelAdmin):
+    pass
+
+class CustomSocialAppAdmin(TenantRestrictedAdminMixin, admin.ModelAdmin):
+    pass
+
+# Unregister default and register custom admins
+admin.site.unregister(EmailAddress)
+admin.site.register(EmailAddress, CustomEmailAddressAdmin)
+
+admin.site.unregister(SocialApp)
+admin.site.register(SocialApp, CustomSocialAppAdmin)

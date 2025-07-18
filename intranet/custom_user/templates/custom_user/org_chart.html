@@ -1,0 +1,186 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags static %}
+
+{% block frontend_assets %}
+    {{ block.super }}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/orgchart/3.1.1/js/jquery.orgchart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/orgchart/3.1.1/css/jquery.orgchart.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content_body %}
+    <div class="container-fluid py-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-white p-3 rounded shadow-sm">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'custom_user:profile-detail' selected_user %}">Profile</a></li>
+                <li class="breadcrumb-item active">Organization Chart</li>
+            </ol>
+        </nav>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Organizational Chart</h4>
+                {% comment %} <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" id="zoomIn"><i class="fas fa-search-plus"></i></button>
+                    <button class="btn btn-sm btn-outline-primary" id="zoomOut"><i class="fas fa-search-minus"></i></button>
+                    <button class="btn btn-sm btn-outline-primary" id="resetView"><i class="fas fa-sync"></i></button>
+                </div> {% endcomment %}
+            </div>
+            <div class="card-body">
+                <div id="orgChart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block custom_assets %}
+    {{ block.super }}
+    <style>
+        .chart-container {
+            height: calc(100vh - 250px);
+            overflow: auto;
+        }
+        #orgChart {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .orgchart {
+            background: #fff;
+            min-height: 100%;
+        }
+        .orgchart .node {
+            width: 240px;
+        }
+        .orgchart .node .title {
+            background-color: #0d6efd;
+            color: #fff;
+            height: auto;
+            padding: 8px;
+        }
+        .orgchart .node .content {
+            border-color: #0d6efd;
+            height: auto;
+            padding: 8px;
+            font-size: 12px;
+        }
+        .orgchart .node.selected .title {
+            background-color: #198754;
+        }
+        .orgchart .node.selected .content {
+            border-color: #198754;
+        }
+        .orgchart .lines .downLine {
+            background-color: #0d6efd;
+        }
+        .orgchart .lines .rightLine {
+            border-color: #0d6efd;
+        }
+        .orgchart .lines .leftLine {
+            border-color: #0d6efd;
+        }
+        @media (max-width: 768px) {
+            .orgchart .node {
+                width: 180px;
+            }
+            .chart-container {
+                height: calc(100vh - 200px);
+            }
+        }
+        .orgchart .node.highlighted .title {
+            background-color: #ffc107;
+            color: #000;
+            border: 2px solid #ffc107; /* Add border around title */
+            border-bottom: none; /* So it doesn't duplicate with content border */
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+
+        }
+        .orgchart .node.highlighted .content {
+            border-color: #ffc107;
+            border: 2px solid #ffc107; /* Add full border around content */
+            border-top: none; /* Match with title border */
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5); /* Optional: subtle glow */
+
+        }
+        .orgchart .node .profile-image {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 5px auto;
+            border: 2px solid #fff;
+        }
+    </style>
+    <script>
+        $(document).ready(function() {
+            // Build hierarchical data
+            const profile = {{ profile|safe }};
+            const managersChain = {{ managers_chain|safe }};
+            const selectedUser = "{{ selected_user }}";
+            
+            // Build complete org data starting from top manager
+            let orgData = profile;
+            if (managersChain.length > 0) {
+                let current = managersChain[managersChain.length - 1];
+                orgData = {
+                    ...current,
+                    children: []
+                };
+                
+                // Build the chain down to the selected user
+                let currentNode = orgData;
+                for (let i = managersChain.length - 2; i >= 0; i--) {
+                    currentNode.children = [{
+                        ...managersChain[i],
+                        children: []
+                    }];
+                    currentNode = currentNode.children[0];
+                }
+                currentNode.children = [profile];
+            }
+
+            const chart = $('#orgChart').orgchart({
+                'data': orgData,
+                'nodeContent': 'designation',
+                'nodeID': 'username',
+                'direction': 't2b',
+                'pan': true,
+                'zoom': true,
+                'createNode': function($node, data) {
+                    if (data.username === selectedUser) {
+                        $node.addClass('highlighted');
+                    }
+
+                    // Add profile picture
+                    if (data.profile_picture) {
+                        $node.find('.title').before(`<img src="${data.profile_picture}" class="profile-image">`);
+                    }
+                    
+                    $node.find('.title').text(data.name);
+                    
+                    // Make nodes clickable
+                    $node.on('click', function() {
+                        window.location.href = `/custom_user/api/profiles/${data.username}/`;
+                    });
+                }
+            });
+
+            // Zoom controls
+            $('#zoomIn').on('click', function() {
+                chart.zoom(true);
+            });
+            
+            $('#zoomOut').on('click', function() {
+                chart.zoom(false);
+            });
+            
+            $('#resetView').on('click', function() {
+                chart.resetView();
+            });
+        });
+    </script>
+{% endblock %}

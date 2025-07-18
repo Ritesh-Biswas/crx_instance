@@ -1,0 +1,96 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags %}
+
+{% block content %}
+{% block content_pre_body %}
+
+
+    <!-- Full-width carousel at the top -->
+    <div class="container mt-4">
+        {% for block in page.page_content %}
+            {% if block.block_type == 'crousal' %}
+                {% include_block block %}
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endblock %}
+
+<div class="container mt-4">
+    {% if page.welcome_text %}
+    <div class="welcome-section">
+        {{ page.welcome_text|richtext }}
+    </div>
+    {% endif %}
+
+    {% if page.featured_section %}
+    <div class="featured-section">
+        {{ page.featured_section|richtext }}
+    </div>
+    {% endif %}
+
+    <!-- Two-column layout -->
+    <div class="row">
+        <!-- Col-A: 60% width -->
+        <div class="col-md-8">
+            {% for block in page.page_content %}
+                {% if block.block_type == 'blog_post' %}
+                    {% include_block block %}
+                {% endif %}
+            {% endfor %}
+            {% for block in page.page_content %}
+                {% if block.block_type == 'blog_post_display' %}
+                    {% include_block block %}
+                {% endif %}
+            {% endfor %}
+            {% block content_body %}
+            {% endblock %}
+            {% comment %} {% for block in page.page_content %}
+                    {% if block.block_type == 'calendar' %}
+                        {% include_block block %}
+                    {% endif %}
+                {% endfor %} {% endcomment %}
+        </div>
+
+        <!-- Col-B: 40% width -->
+        <div class="col-md-4">
+            {% for block in page.page_content %}
+            {% if block.block_type != 'blog_post' and block.block_type != 'blog_post_display' and block.block_type != 'crousal' %}
+                {% include_block block %}
+            {% endif %}
+
+            {% endfor %}
+            
+            <!-- Adding margin-top between the two loops -->
+            {% comment %} <div class="mt-4">
+                {% for block in page.page_content %}
+                    {% if block.block_type == 'google_drive' %}
+                        {% include_block block %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="mt-4">
+                {% for block in page.page_content %}
+                    {% if block.block_type == 'calendar' %}
+                        {% include_block block %}
+                    {% endif %}
+                {% endfor %}
+            </div> {% endcomment %}
+
+
+        
+            <!-- Adding margin above page.body -->
+            <div class="mt-4">  
+                {{ page.body }}
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- Full-width content body -->
+<div class="container mt-4">
+    
+</div>
+
+{% endblock %}

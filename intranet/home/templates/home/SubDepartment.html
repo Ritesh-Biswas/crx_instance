@@ -1,0 +1,182 @@
+{% extends "coderedcms/pages/web_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags coderedcms_tags %}
+
+{% block frontend_assets %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="subdepartment-page container py-5">
+            <!-- Breadcrumb -->
+            <div class="row mb-4">
+            <div class="col-12">
+                <button onclick="window.history.back()" class="btn btn-outline-primary btn-sm mb-2">
+                    <i class="fas fa-arrow-left me-1"></i> Back
+                </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a href="/" class="text-decoration-none"><i class="fas fa-home"></i> Home</a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{% pageurl page.get_parent %}" class="text-decoration-none">{{ page.get_parent.title }}</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ page.title }}</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
+
+    <div class="container py-5">
+        {% block content_body %}
+        {% if not self.cover_image %}
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h1 class="text-primary fw-bold display-4 mb-3">{{ page.title }}</h1>
+                {% if page.subtitle %}
+                <p class="lead text-muted mb-4">{{ page.subtitle }}</p>
+                {% endif %}
+                <hr class="my-4 mx-auto" style="width: 50%; border-top: 2px solid var(--bs-primary);">
+                {% comment %} <div class="d-flex align-items-center justify-content-center flex-wrap gap-3 mt-3 my-2">
+                    <div class="text-center">
+                        <h5 class="mb-0 fw-bold">
+                            <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#followersModal">
+                                {{ followers_count }}
+                            </a>
+                        </h5>
+                        <small class="text-muted fw-bold">Followers</small>
+                    </div>
+                    {% if request.user.is_authenticated %}
+                    <div class="text-center">
+                        <button class="btn btn-lg btn-outline-primary" id="follow-department-btn"
+                            data-dept="{{ page.slug }}"
+                            data-following="{{ is_following|yesno:'true,false' }}">
+                            {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                        </button>
+                    </div>
+                    {% endif %}
+                </div> {% endcomment %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-lg-8">
+                {% for block in page.page_content %}
+                    {% if block.block_type == 'blog_post' or block.block_type == 'blog_post_display' %}
+                        {% include_block block %}
+                    {% endif %}
+                {% endfor %}
+                <div class="subdepartment-content mb-5">{{ page.body }}</div>
+            </div>
+
+            <div class="col-lg-4">
+                {% if subdepartmentannouncements %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Announcements</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for announcement in subdepartmentannouncements %}
+                            <li class="list-group-item d-flex align-items-start border-0">
+                                <i class="fas fa-bullhorn text-primary me-2 mt-1"></i>
+                                <div>
+                                    <a href="{% pageurl announcement %}" class="text-decoration-none">{{ announcement.title }}</a>
+                                    <div><small class="text-muted">{{ announcement.first_published_at|date:"M d, Y" }}</small></div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if subfaq %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Frequently Asked Questions</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for faq in subfaq %}
+                            <li class="list-group-item d-flex align-items-start border-0">
+                                <i class="fas fa-question-circle text-primary me-2 mt-1"></i>
+                                <div>
+                                    <a href="{% pageurl faq %}" class="text-decoration-none">{{ faq.title }}</a>
+                                    <div><small class="text-muted">{{ faq.first_published_at|date:"M d, Y" }}</small></div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_assets %}
+{{ block.super }}
+<style>
+    .breadcrumb {
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .breadcrumb-item.active {
+        font-weight: 500;
+    }
+    
+    .breadcrumb-item a {
+        color: var(--bs-primary);
+    }
+    
+    /* Back button styling */
+    .btn-outline-primary {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-primary:hover {
+        transform: translateX(-3px);
+        box-shadow: 0 4px 8px rgba(var(--bs-primary-rgb), 0.2);
+    }
+    
+</style>
+{% comment %} <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const followBtn = document.getElementById("follow-department-btn");
+        followBtn?.addEventListener("click", function () {
+            const deptSlug = this.dataset.dept;
+            const isFollowing = this.dataset.following === "true";
+
+            fetch(`/custom_user/follow-department-toggle/${deptSlug}/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "followed") {
+                    followBtn.textContent = "Unfollow";
+                    followBtn.dataset.following = "true";
+                } else if (data.status === "unfollowed") {
+                    followBtn.textContent = "Follow";
+                    followBtn.dataset.following = "false";
+                }
+                location.reload();
+            });
+        });
+    });
+</script> {% endcomment %}
+{% endblock %}
