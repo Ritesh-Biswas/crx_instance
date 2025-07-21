@@ -455,7 +455,7 @@
                         timeZone: 'Asia/Kolkata'
                     }));
                     const timeLeft = endTimeIST - nowIST;
-
+    
                     if (timeLeft <= 0) {
                         timerElement.innerHTML = "Poll has ended";
                         clearInterval(timerInterval);
@@ -486,7 +486,7 @@
                         });
                     }
                 }
-
+    
                 updateTimer();
                 const timerInterval = setInterval(updateTimer, 1000);
             }

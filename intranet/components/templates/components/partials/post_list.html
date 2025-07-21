@@ -1,5 +1,5 @@
 {% for post in posts %}
-<li class="mb-3 border-bottom pb-3">
+<li id="post-{{ post.id }}" class="mb-3 border-bottom pb-3">
     <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
         <a href="{{ post.url }}" class="text-decoration-none text-body">
             {% if post.title %}
@@ -26,6 +26,7 @@
                 {% endif %}
             </p>
         </a>
+
         <div class="d-flex align-items-center gap-3">
             {% if post.type == 'poll' %}
                 <div class="d-flex align-items-center fs-6 text-secondary">
@@ -42,9 +43,13 @@
                     {% endif %}
                 </div>
             {% else %}
-                <span class="d-flex align-items-center fs-6">
-                    {% include "components/partials/like_button.html" with post_id=post.id is_liked=post.is_like_by_user likes_count=post.likes_count %}
-                </span>
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-2 like-button"
+                        hx-post="{% url 'components:toggle_like_post' post.id %}"
+                        hx-target="this"
+                        hx-swap="outerHTML">
+                    <i class="far {% if post.is_like_by_user %}fas{% endif %} fa-thumbs-up"></i>
+                    <span>{{ post.likes_count }}</span>
+                </button>
                 <span class="d-flex align-items-center fs-6 text-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
                         <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
@@ -55,31 +60,32 @@
             {% endif %}
 
             {% if post.author == request.user.id or request.user.is_superuser or 'Tenant' in request.user.groups.all %}
-                <div class="post-actions">
-                    {% if post.type != 'poll' or post.is_poll_active %}
-                        <button class="edit-post-btn btn btn-sm btn-outline-primary me-2"
-                                hx-get="{% url 'components:edit_post' post.id %}"
-                                hx-target="#editPostModal .modal-content"
-                                hx-trigger="click"
-                                data-bs-toggle="modal"
-                                data-bs-target="#editPostModal">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456l-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                            </svg>
-                            Edit
-                        </button>
-                    {% endif %}
-                    <button class="delete-post-btn btn btn-sm btn-outline-danger"
-                            hx-delete="{% url 'components:delete_post' post.id %}"
-                            hx-confirm="Are you sure you want to delete this post?"
-                            hx-target="closest li">
+            <div class="post-actions">
+                {% if post.type != 'poll' or post.is_poll_active %}
+                    <button class="edit-post-btn btn btn-sm btn-outline-primary me-2"
+                            hx-get="{% url 'components:edit_post' post.id %}"
+                            hx-target="#editPostModalContent"
+                            hx-trigger="click"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editPostModal">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456l-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
                         </svg>
-                        Delete
+                        Edit
                     </button>
-                </div>
+                {% endif %}
+                <button class="delete-post-btn btn btn-sm btn-outline-danger"
+                        hx-post="{% url 'components:delete_post' post.id %}"
+                        hx-confirm="Are you sure you want to delete this post?"
+                        hx-target="closest li"
+                        hx-swap="outerHTML">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                    </svg>
+                    Delete
+                </button>
+            </div>
             {% endif %}
         </div>
     </div>

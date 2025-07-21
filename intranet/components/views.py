@@ -39,6 +39,7 @@ from custom_media.models import CustomDocument  # Add this import at the top wit
 from django.http import HttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponseBadRequest
+import json
 
 User = get_user_model()
 
@@ -67,12 +68,14 @@ def blog_post_create_view(request):
         if post_type == 'poll':
             poll_end_time = request.POST.get('poll_end_time')
             poll_options = request.POST.getlist('poll_options[]')
-            
+
             if poll_end_time:
                 try:
                     # Convert to UTC before saving
                     local_dt = datetime.fromisoformat(poll_end_time)
-                    utc_dt = timezone.make_aware(local_dt, timezone.get_current_timezone())
+                    ist_tz = pytz.timezone('Asia/Kolkata')
+                    ist_dt = ist_tz.localize(local_dt)
+                    utc_dt = ist_dt.astimezone(pytz.UTC)
                     post.poll_end_time = utc_dt
                     post.save()
                 except ValueError as e:
@@ -80,27 +83,24 @@ def blog_post_create_view(request):
                         'status': 'error',
                         'message': f'Invalid datetime format: {str(e)}'
                     }, status=400)
-            
+
             for option_text in poll_options:
                 if option_text.strip():
                     PollOption.objects.create(post=post, text=option_text)
 
         # If it's an HTMX request, return just the new post HTML
         if request.headers.get('HX-Request'):
-            # Get the local timezone
-            local_tz = timezone.get_current_timezone()
+            # Get the IST timezone
+            ist_tz = pytz.timezone('Asia/Kolkata')
             
-            # Convert created_at to local time
-            local_created_at = timezone.localtime(post.created_at, local_tz)
-
+            # Convert created_at to IST
+            ist_created_at = timezone.localtime(post.created_at, ist_tz)
+            
             # For poll end time, preserve the original input time
             poll_end_time_str = None
             if post.poll_end_time:
-                # Get the original input time back
-                original_time = request.POST.get('poll_end_time')
-                if original_time:
-                    # Format it with ET timezone
-                    poll_end_time_str = f"{original_time}-04:00"
+                # Format it with IST timezone
+                poll_end_time_str = post.poll_end_time.astimezone(ist_tz).strftime('%Y-%m-%dT%H:%M:%S%z')
             
             # Format post data for template
             post_data = {
@@ -111,8 +111,8 @@ def blog_post_create_view(request):
                 'title': post.title,
                 'type': post.post_type,
                 'body': post.body,
-                'created_at': local_created_at.strftime('%Y-%m-%dT%H:%M:%S-04:00'),  # Format with ET timezone
-                'poll_end_time': poll_end_time_str,  # Use original input time
+                'created_at': ist_created_at.strftime('%Y-%m-%dT%H:%M:%S%z'),  # Format with IST timezone
+                'poll_end_time': poll_end_time_str,  # Use IST time
                 'likes_count': 0,
                 'comments_count': 0,
                 'sub_department': post.subdepartment.name if post.subdepartment else 'Global',
@@ -403,55 +403,171 @@ def subdepartment_list_view(request):
 
 @login_required
 def edit_post(request, post_id):
+    print("\n=== Edit Post Request ===")
+    print(f"Request Method: {request.method}")
+    print(f"Post ID: {post_id}")
+    print(f"HTMX Request: {bool(request.headers.get('HX-Request'))}")
+    print(f"Content-Type: {request.content_type}")
+    print(f"Request Body Size: {len(request.body)} bytes")
+    print(f"Form Data: {request.POST}")
+    
     post = get_object_or_404(BlogPost, id=post_id)
+    print(f"\nPost Details:")
+    print(f"Type: {post.post_type}")
+    print(f"Current Title: {post.title}")
+    print(f"Current Department: {post.subdepartment.name if post.subdepartment else 'Global'}")
     
     # Check permissions
     if not (request.user.is_superuser or post.author.user == request.user or request.user.groups.filter(name="Tenant").exists()):
         raise PermissionDenied
     
     if request.method == "POST":
-        # Update title for all post types
-        post.title = request.POST.get('title', '')
+        try:
+            print("\nProcessing Edit Request:")
+            new_title = request.POST.get('title', '')
+            new_subdepartment = request.POST.get('subdepartment')
+            print(f"New Title: {new_title}")
+            print(f"New Department: {new_subdepartment}")
             
-        if post.post_type != 'poll':
-            post.body = request.POST.get('body', '')
-            
-        if post.post_type == 'poll':
-            poll_end_time = request.POST.get('poll_end_time')
-            if poll_end_time:
-                try:
-                    # Convert ISO format string to datetime object
-                    utc_dt = datetime.fromisoformat(poll_end_time.replace('Z', '+00:00'))
-                    post.poll_end_time = utc_dt
-                except ValueError as e:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': f'Invalid datetime format: {str(e)}'
-                    }, status=400)
+            # Update title for all post types
+            post.title = new_title
                 
-                # Update poll options
-                existing_options = post.poll_options.all()
+            if post.post_type != 'poll':
+                new_body = request.POST.get('body', '')
+                print(f"Raw Body Content: {new_body}")
+                print(f"Content Length: {len(new_body)}")
+                
+                # Just update the body without validation
+                post.body = new_body
+                print(f"Content Updated")
+                
+            if post.post_type == 'poll':
+                poll_end_time = request.POST.get('poll_end_time')
                 new_options = request.POST.getlist('poll_options[]')
+                print("\nPoll Specific Updates:")
+                print(f"New End Time: {poll_end_time}")
+                print(f"New Options Count: {len(new_options)}")
+                print(f"New Options: {new_options}")
                 
-                # Delete removed options
-                existing_options.exclude(text__in=new_options).delete()
-                
-                # Update or create options
-                for option_text in new_options:
-                    if option_text.strip():
-                        PollOption.objects.update_or_create(
-                            post=post,
-                            text=option_text.strip()
-                        )
+                if poll_end_time:
+                    try:
+                        # Parse the datetime string
+                        local_dt = datetime.strptime(poll_end_time, '%Y-%m-%dT%H:%M')
+                        
+                        # Get the IST timezone
+                        ist_tz = pytz.timezone('Asia/Kolkata')
+                        
+                        # Make the datetime timezone-aware in IST
+                        aware_dt = ist_tz.localize(local_dt)
+                        
+                        # Convert to UTC for storage
+                        utc_dt = aware_dt.astimezone(pytz.UTC)
+                        
+                        post.poll_end_time = utc_dt
+                        print(f"Converted End Time (UTC): {utc_dt}")
+                        print(f"Original IST Time: {aware_dt}")
+                    except ValueError as e:
+                        print(f"Error Converting DateTime: {str(e)}")
+                        return JsonResponse({
+                            'status': 'error',
+                            'message': f'Invalid datetime format: {str(e)}'
+                        }, status=400)
+                    
+                    # Update poll options
+                    existing_options = post.poll_options.all()
+                    current_options = list(existing_options.values_list('text', flat=True))
+                    print(f"Current Options: {current_options}")
+                    
+                    # Track changes
+                    removed_options = set(current_options) - set(new_options)
+                    added_options = set(new_options) - set(current_options)
+                    print(f"Removed Options: {removed_options}")
+                    print(f"Added Options: {added_options}")
+                    
+                    # Delete removed options
+                    existing_options.exclude(text__in=new_options).delete()
+                    
+                    # Update or create options
+                    for option_text in new_options:
+                        if option_text.strip():
+                            PollOption.objects.update_or_create(
+                                post=post,
+                                text=option_text.strip()
+                            )
 
-        if request.POST.get('subdepartment') != 'global':
-            subdepartment = SubDepartmentPage.objects.filter(id=request.POST.get('subdepartment')).first()
-            post.subdepartment = subdepartment
-        else:
-            post.subdepartment = None
+            if new_subdepartment != 'global':
+                subdepartment = SubDepartmentPage.objects.filter(id=new_subdepartment).first()
+                post.subdepartment = subdepartment
+            else:
+                post.subdepartment = None
+                
+            post.save()
+            print("\nPost Updated Successfully")
+            print(f"Final Body Content: {post.body[:100]}...")
+
+            if request.headers.get('HX-Request'):
+                print("\nPreparing HTMX Response")
+                # Get IST timezone
+                ist_tz = pytz.timezone('Asia/Kolkata')
+                
+                # Format post data for template
+                post_data = {
+                    'id': post.id,
+                    'type': post.post_type,
+                    'title': post.title,
+                    'body': post.body,
+                    'author': post.author.user.id,
+                    'author_name': post.author.user.get_full_name(),
+                    'author_profile_url': reverse('custom_user:profile-detail', kwargs={'username': post.author.user.username}),
+                    'created_at': timezone.localtime(post.created_at, ist_tz).strftime('%Y-%m-%dT%H:%M:%S%z'),
+                    'likes_count': post.likes.count(),
+                    'comments_count': post.comments.count(),
+                    'sub_department': post.subdepartment.name if post.subdepartment else 'Global',
+                    'dept_url': post.subdepartment.url if post.subdepartment else '',
+                    'url': reverse('components:blog_post_detail', kwargs={'pk': post.pk}),
+                    'is_like_by_user': post.likes.filter(id=request.user.id).exists(),
+                }
+                
+                if post.post_type == 'poll':
+                    # Convert poll_end_time to IST for display
+                    local_end_time = post.poll_end_time.astimezone(ist_tz)
+                    
+                    post_data.update({
+                        'poll_end_time': local_end_time.strftime('%Y-%m-%dT%H:%M:%S%z'),
+                        'poll_options': list(post.poll_options.values_list('text', flat=True)),
+                        'total_votes': post.total_votes,
+                        'is_poll_active': post.is_poll_active
+                    })
+                
+                print("\nSending Response Data:")
+                print(f"Updated Title: {post_data['title']}")
+                print(f"Updated Body: {post_data['body'][:100]}...")
+                print(f"Updated Department: {post_data['sub_department']}")
+                if post.post_type == 'poll':
+                    print(f"Updated Poll End Time: {post_data['poll_end_time']}")
+                    print(f"Updated Poll Options: {post_data['poll_options']}")
+                    print(f"Total Votes: {post_data['total_votes']}")
+                    print(f"Poll Active: {post_data['is_poll_active']}")
+                
+                response = render(request, 'components/partials/post_list.html', {'posts': [post_data]})
+                response['HX-Trigger'] = json.dumps({
+                    'showMessage': 'Post updated successfully',
+                    'closeModal': 'true'
+                })
+                return response
             
-        post.save()
-        return JsonResponse({'status': 'success'})
+            return JsonResponse({'status': 'success'})
+        
+        except Exception as e:
+            import traceback
+            print("\nError in edit_post:")
+            print(f"Error Type: {type(e).__name__}")
+            print(f"Error Message: {str(e)}")
+            print("Stack Trace:")
+            print(traceback.format_exc())
+            if request.headers.get('HX-Request'):
+                return HttpResponse(str(e), status=500)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
     # For GET requests, filter subdepartments based on user permissions
     user = request.user
@@ -462,29 +578,52 @@ def edit_post(request, post_id):
             models.Q(members=user) | models.Q(site_admins=user)
         ).distinct()
     
-    response_data = {
+    # Format post data for template
+    post_data = {
         'id': post.id,
         'type': post.post_type,
         'title': post.title,
         'body': post.body or '',
         'subdepartment': post.subdepartment.id if post.subdepartment else 'global',
-        'subdepartments': [{'id': dept.id, 'name': dept.name} for dept in subdepartments]
     }
     
     if post.post_type == 'poll':
-        response_data.update({
-                # Convert to ISO format for consistent handling
-                'poll_end_time': post.poll_end_time.isoformat() if post.poll_end_time else None,
-                'poll_options': list(post.poll_options.values_list('text', flat=True))
-            })
-        
-    return JsonResponse(response_data)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        post_data.update({
+            'poll_end_time': timezone.localtime(post.poll_end_time, ist_tz) if post.poll_end_time else None,
+            'poll_options': list(post.poll_options.values_list('text', flat=True))
+        })
+    
+    context = {
+        'post': post_data,
+        'subdepartments': subdepartments
+    }
+    
+    print("\nGET Request - Sending Context:")
+    print(f"Post Type: {post_data['type']}")
+    print(f"Title: {post_data['title']}")
+    print(f"Department: {post_data['subdepartment']}")
+    if post.post_type == 'poll':
+        print(f"Poll End Time: {post_data['poll_end_time']}")
+        print(f"Poll Options: {post_data['poll_options']}")
+    
+    if request.headers.get('HX-Request'):
+        return render(request, 'components/partials/edit_post_modal.html', context)
+    return JsonResponse(post_data)
 
 @login_required
 @require_POST
 def delete_post(request, post_id):
+    print("\n=== Delete Post Request ===")
+    print(f"Request Method: {request.method}")
+    print(f"Post ID: {post_id}")
+    print(f"HTMX Request: {bool(request.headers.get('HX-Request'))}")
+    
     post = get_object_or_404(BlogPost, id=post_id)
-    print(f"USer is moderator: {request.user.groups.filter(name='Tenant').exists()}")
+    print(f"\nPost Details:")
+    print(f"Type: {post.post_type}")
+    print(f"Title: {post.title}")
+    print(f"Department: {post.subdepartment.name if post.subdepartment else 'Global'}")
     
     # Check permissions
     if not (request.user.is_superuser or post.author.user == request.user or request.user.groups.filter(name="Tenant").exists()):
@@ -493,8 +632,45 @@ def delete_post(request, post_id):
             'message': 'Permission denied'
         }, status=403)
     
-    post.delete()
-    return JsonResponse({'status': 'success'})
+    try:
+        # Store post info for logging
+        post_info = {
+            'id': post.id,
+            'type': post.post_type,
+            'title': post.title,
+            'author': post.author.user.username
+        }
+        
+        # Delete the post
+        post.delete()
+        
+        print("\nPost Deleted Successfully:")
+        print(f"Post Info: {post_info}")
+        
+        if request.headers.get('HX-Request'):
+            # Return empty response with 200 status for HTMX
+            response = HttpResponse('')
+            response['HX-Trigger'] = json.dumps({
+                'showMessage': 'Post deleted successfully'
+            })
+            return response
+        
+        return JsonResponse({'status': 'success'})
+        
+    except Exception as e:
+        print("\nError Deleting Post:")
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {str(e)}")
+        print("Stack Trace:")
+        import traceback
+        print(traceback.format_exc())
+        
+        if request.headers.get('HX-Request'):
+            return HttpResponse(str(e), status=500)
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
 
 
 class CalendarEventsView(LoginRequiredMixin, View):
