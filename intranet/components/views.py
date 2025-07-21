@@ -310,7 +310,7 @@ def load_more_posts(request):
             'total_votes': post.total_votes if post.post_type == 'poll' else 0,
             'poll_end_time': post.poll_end_time.isoformat() if post.poll_end_time else None,
             'sub_department': post.subdepartment.name if post.subdepartment else 'Global',
-            'dept_url': reverse('home:department', args=[post.subdepartment.slug]) if post.subdepartment else None,
+            'dept_url': post.subdepartment.url if post.subdepartment else None,
             'author_name': post.author.user.get_full_name() or post.author.user.username
         }
         post_data.append(post_dict)
@@ -369,6 +369,7 @@ def subdepartment_list_view(request):
 @login_required
 def edit_post(request, post_id):
     post = get_object_or_404(BlogPost, id=post_id)
+    print(f"Editing post {post_id}: Content = {post.body}")  # Debug print
     
     # Check permissions
     if not (request.user.is_superuser or post.author.user == request.user or request.user.groups.filter(name="Tenant").exists()):
@@ -384,6 +385,7 @@ def edit_post(request, post_id):
                 
             if post.post_type != 'poll':
                 post.body = request.POST.get('body', '')
+                print(f"Updating post body to: {post.body}")  # Debug print
                 
             if post.post_type == 'poll':
                 poll_end_time = request.POST.get('poll_end_time')
@@ -484,9 +486,11 @@ def edit_post(request, post_id):
         'id': post.id,
         'type': post.post_type,
         'title': post.title,
-        'body': post.body or '',
+        'body': post.body,  # Make sure we're sending the actual post body
         'subdepartment': post.subdepartment.id if post.subdepartment else 'global',
     }
+    
+    print(f"Sending post data to template: {post_data}")  # Debug print
     
     if post.post_type == 'poll':
         ist_tz = pytz.timezone('Asia/Kolkata')

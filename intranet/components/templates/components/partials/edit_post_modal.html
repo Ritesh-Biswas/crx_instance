@@ -36,7 +36,14 @@
             </select>
         </div>
 
-        {% if post.type == 'poll' %}
+        {% if post.type != 'poll' %}
+            <!-- Body field for non-poll posts -->
+            <div class="mb-3">
+                <label for="edit_body" class="form-label">Content</label>
+                <div id="edit_quill_editor"></div>
+                <input type="hidden" id="edit_body" name="body" value="{{ post.body|safe }}">
+            </div>
+        {% else %}
             <!-- Poll End Time -->
             <div class="mb-3">
                 <label for="edit_poll_end_time" class="form-label">Poll End Time (IST)</label>
@@ -76,13 +83,6 @@
                     <i class="fas fa-plus"></i> Add Option
                 </button>
             </div>
-        {% else %}
-            <!-- Body field for non-poll posts -->
-            <div class="mb-3">
-                <label for="edit_body" class="form-label">Content</label>
-                <div id="edit_quill_editor"></div>
-                <input type="hidden" id="edit_body" name="body">
-            </div>
         {% endif %}
 
         <div class="modal-footer">
@@ -100,7 +100,14 @@ let editQuill = null;
 
 {% if post.type != 'poll' %}
 function initializeQuill() {
+    console.log('Starting Quill initialization...', {
+        postType: '{{ post.type }}',
+        postId: '{{ post.id }}',
+        postBody: `{{ post.body|safe|escapejs }}`
+    });
+    
     if (editQuill) {
+        console.log('Destroying existing Quill instance');
         editQuill = null;
     }
     
@@ -113,27 +120,54 @@ function initializeQuill() {
                 ['bold', 'italic', 'underline'],
                 ['image', 'code-block']
             ]
-        }
+        },
+        placeholder: 'Enter your content here...'
     });
 
     // Set initial content
-    const initialContent = `{{ post.body|safe|escapejs }}`;
-    editQuill.root.innerHTML = initialContent;
-    document.getElementById('edit_body').value = initialContent;
+    const initialContent = document.getElementById('edit_body').value;
+    console.log('Setting initial content:', {
+        rawContent: initialContent,
+        contentLength: initialContent.length
+    });
     
-    console.log('Quill initialized with content:', initialContent);
+    // Ensure the editor container is visible
+    const editorContainer = document.querySelector('#edit_quill_editor');
+    if (editorContainer) {
+        editorContainer.style.display = 'block';
+        editorContainer.style.minHeight = '200px';
+    }
+
+    // Set content with a small delay to ensure editor is ready
+    setTimeout(() => {
+        editQuill.root.innerHTML = initialContent;
+        console.log('Content set in editor:', {
+            editorContent: editQuill.root.innerHTML,
+            hiddenInputContent: document.getElementById('edit_body').value
+        });
+    }, 100);
 
     // Watch for content changes
     editQuill.on('text-change', function() {
         const content = editQuill.root.innerHTML;
         document.getElementById('edit_body').value = content;
-        console.log('Content updated:', content);
+        console.log('Content updated:', {
+            newContent: content,
+            length: content.length
+        });
     });
 }
 
 // Initialize Quill after modal content is loaded
 document.addEventListener('htmx:afterSwap', function(evt) {
+    console.log('HTMX afterSwap event:', {
+        targetId: evt.detail.target.id,
+        target: evt.detail.target
+    });
+    
     if (evt.detail.target.id === 'editPostModalContent') {
+        console.log('Initializing Quill after modal content load');
+        // Add a small delay to ensure DOM is ready
         setTimeout(initializeQuill, 100);
     }
 });
@@ -144,7 +178,7 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
         const content = editQuill.root.innerHTML;
         evt.detail.parameters['body'] = content;
         
-        console.log('Submitting post Edit:', {
+        console.log('Submitting form:', {
             title: evt.detail.parameters.title,
             subdepartment: evt.detail.parameters.subdepartment,
             body: content,
@@ -154,13 +188,30 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     }
 });
 
+// Clean up Quill instance when modal is closed
 document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.successful && evt.detail.elt.id === 'edit-post-form') {
+        console.log('Form submission successful, cleaning up');
         const modal = bootstrap.Modal.getInstance(document.getElementById('editPostModal'));
         if (modal) {
             modal.hide();
             editQuill = null;
         }
+    }
+});
+
+// Add modal event listeners
+document.addEventListener('show.bs.modal', function (event) {
+    console.log('Modal showing');
+    const modal = event.target;
+    modal.removeAttribute('aria-hidden');
+    modal.setAttribute('aria-modal', 'true');
+});
+
+document.addEventListener('hide.bs.modal', function (event) {
+    console.log('Modal hiding, cleaning up');
+    if (editQuill) {
+        editQuill = null;
     }
 });
 {% endif %}
@@ -182,18 +233,4 @@ function addEditPollOption() {
     `;
     container.appendChild(newOption);
 }
-
-// Fix modal focus issue
-document.addEventListener('show.bs.modal', function (event) {
-    const modal = event.target;
-    modal.removeAttribute('aria-hidden');
-    modal.setAttribute('aria-modal', 'true');
-});
-
-document.addEventListener('hide.bs.modal', function (event) {
-    const modal = event.target;
-    if (editQuill) {
-        editQuill = null;
-    }
-});
 </script> 
