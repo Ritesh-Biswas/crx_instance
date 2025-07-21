@@ -110,7 +110,6 @@ function formatLocalTime(timestamp) {
             return '';
         }
         
-        // Format in IST timezone
         return date.toLocaleString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -118,7 +117,7 @@ function formatLocalTime(timestamp) {
             hour: '2-digit',
             minute: '2-digit',
             hour12: false,
-            timeZone: 'Asia/Kolkata'  // IST timezone
+            timeZone: 'Asia/Kolkata'
         });
     } catch (error) {
         console.error('Error formatting time:', error);
@@ -139,17 +138,11 @@ function updateTimestamps() {
     // Update poll end times
     document.querySelectorAll('.poll-end-time').forEach(element => {
         const timestamp = element.dataset.timestamp;
-        console.log('Processing poll end time element:', element.outerHTML);
-        console.log('Raw timestamp value:', timestamp);
         
-        if (!timestamp) {
-            console.warn('No timestamp found for poll end time element:', element.outerHTML);
-            return;
-        }
+        if (!timestamp) return;
 
         try {
             const date = new Date(timestamp);
-            console.log('Parsed date:', date);
             
             if (isNaN(date.getTime())) {
                 console.error('Invalid poll end date:', timestamp);
@@ -157,8 +150,6 @@ function updateTimestamps() {
             }
 
             const now = new Date();
-            console.log('Current time:', now);
-            console.log('End time:', date);
             
             // Check if poll has ended
             if (date <= now) {
@@ -175,7 +166,6 @@ function updateTimestamps() {
                     timeZone: 'Asia/Kolkata'
                 });
                 element.textContent = `Ends at ${formattedTime}`;
-                console.log('Formatted time:', formattedTime);
             }
         } catch (error) {
             console.error('Error processing poll end time:', error);
@@ -184,10 +174,7 @@ function updateTimestamps() {
 }
 
 // Initial load
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded - updating timestamps');
-    updateTimestamps();
-});
+document.addEventListener('DOMContentLoaded', updateTimestamps);
 
 // HTMX event handlers with debouncing
 let updateTimeoutId = null;
@@ -195,39 +182,29 @@ function debouncedUpdateTimestamps() {
     if (updateTimeoutId) {
         clearTimeout(updateTimeoutId);
     }
-    updateTimeoutId = setTimeout(() => {
-        console.log('Running debounced timestamp update');
-        updateTimestamps();
-    }, 100);
+    updateTimeoutId = setTimeout(updateTimestamps, 100);
 }
 
-document.body.addEventListener('htmx:afterSwap', function(evt) {
-    console.log('HTMX afterSwap event triggered');
-    debouncedUpdateTimestamps();
-});
-
-document.body.addEventListener('htmx:afterSettle', function(evt) {
-    console.log('HTMX afterSettle event triggered');
-    debouncedUpdateTimestamps();
-});
+document.body.addEventListener('htmx:afterSwap', debouncedUpdateTimestamps);
+document.body.addEventListener('htmx:afterSettle', debouncedUpdateTimestamps);
 
 // Handle HTMX errors
 document.body.addEventListener('htmx:responseError', function(evt) {
     console.error('HTMX Error:', evt.detail);
 });
 
-// Keep existing JavaScript for department loading
+// Load departments
 document.addEventListener('DOMContentLoaded', function() {
     const departmentDropdown = document.getElementById('department_filter');
     
     if (departmentDropdown) {
         fetch('/components/subdepartments/')
             .then(response => response.json())
-                .then(data => {
-                        data.subdepartments.forEach(dept => {
-                            const option = document.createElement('option');
-                            option.value = dept.id;
-                            option.textContent = dept.name;
+            .then(data => {
+                data.subdepartments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
                     departmentDropdown.appendChild(option);
                 });
             })
@@ -238,8 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Handle modal events
 document.addEventListener('show.bs.modal', function (event) {
     if (event.target.id === 'editPostModal') {
-        // Clear previous content
         document.getElementById('editPostModalContent').innerHTML = '';
     }
-    });
+});
 </script>

@@ -61,7 +61,7 @@
 
             {% if post.author == request.user.id or request.user.is_superuser or 'Tenant' in request.user.groups.all %}
             <div class="post-actions">
-                {% if post.type != 'poll' or post.is_poll_active %}
+                {% if post.type != 'poll' %}
                     <button class="edit-post-btn btn btn-sm btn-outline-primary me-2"
                             hx-get="{% url 'components:edit_post' post.id %}"
                             hx-target="#editPostModalContent"

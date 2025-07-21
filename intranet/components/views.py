@@ -273,18 +273,9 @@ class BlogPostDetailView(LoginRequiredMixin, DetailView):
 
 @login_required
 def load_more_posts(request):
-    print("\n=== Load More Posts Request ===")
-    print(f"Request Method: {request.method}")
-    print(f"HTMX Request: {bool(request.headers.get('HX-Request'))}")
-    
     page = int(request.GET.get('page', 1))
     post_type_filter = request.GET.get('post_type_filter', 'all')
     department_filter = request.GET.get('department_filter', 'all')
-    
-    print(f"\nFilter Parameters:")
-    print(f"Page: {page}")
-    print(f"Post Type Filter: {post_type_filter}")
-    print(f"Department Filter: {department_filter}")
     
     posts_per_page = 10
     posts = BlogPost.objects.all().order_by('-created_at')
@@ -324,14 +315,6 @@ def load_more_posts(request):
         }
         post_data.append(post_dict)
         
-        print(f"\nPost Details:")
-        print(f"ID: {post.id}")
-        print(f"Type: {post.post_type}")
-        print(f"Title: {post.title}")
-        if post.post_type == 'poll':
-            print(f"Poll End Time: {post.poll_end_time}")
-            print(f"Total Votes: {post.total_votes}")
-    
     context = {
         'posts': post_data,
         'has_more': end < posts.count()
@@ -385,19 +368,7 @@ def subdepartment_list_view(request):
 
 @login_required
 def edit_post(request, post_id):
-    print("\n=== Edit Post Request ===")
-    print(f"Request Method: {request.method}")
-    print(f"Post ID: {post_id}")
-    print(f"HTMX Request: {bool(request.headers.get('HX-Request'))}")
-    print(f"Content-Type: {request.content_type}")
-    print(f"Request Body Size: {len(request.body)} bytes")
-    print(f"Form Data: {request.POST}")
-    
     post = get_object_or_404(BlogPost, id=post_id)
-    print(f"\nPost Details:")
-    print(f"Type: {post.post_type}")
-    print(f"Current Title: {post.title}")
-    print(f"Current Department: {post.subdepartment.name if post.subdepartment else 'Global'}")
     
     # Check permissions
     if not (request.user.is_superuser or post.author.user == request.user or request.user.groups.filter(name="Tenant").exists()):
@@ -405,51 +376,29 @@ def edit_post(request, post_id):
     
     if request.method == "POST":
         try:
-            print("\nProcessing Edit Request:")
             new_title = request.POST.get('title', '')
             new_subdepartment = request.POST.get('subdepartment')
-            print(f"New Title: {new_title}")
-            print(f"New Department: {new_subdepartment}")
             
             # Update title for all post types
             post.title = new_title
                 
             if post.post_type != 'poll':
-                new_body = request.POST.get('body', '')
-                print(f"Raw Body Content: {new_body}")
-                print(f"Content Length: {len(new_body)}")
-                
-                # Just update the body without validation
-                post.body = new_body
-                print(f"Content Updated")
+                post.body = request.POST.get('body', '')
                 
             if post.post_type == 'poll':
                 poll_end_time = request.POST.get('poll_end_time')
                 new_options = request.POST.getlist('poll_options[]')
-                print("\nPoll Specific Updates:")
-                print(f"New End Time: {poll_end_time}")
-                print(f"New Options Count: {len(new_options)}")
-                print(f"New Options: {new_options}")
                 
                 if poll_end_time:
                     try:
                         # Parse the datetime string
                         local_dt = datetime.strptime(poll_end_time, '%Y-%m-%dT%H:%M')
-                        
-                        # Get the IST timezone
                         ist_tz = pytz.timezone('Asia/Kolkata')
-                        
-                        # Make the datetime timezone-aware in IST
                         aware_dt = ist_tz.localize(local_dt)
-                        
-                        # Convert to UTC for storage
                         utc_dt = aware_dt.astimezone(pytz.UTC)
-                        
                         post.poll_end_time = utc_dt
-                        print(f"Converted End Time (UTC): {utc_dt}")
-                        print(f"Original IST Time: {aware_dt}")
                     except ValueError as e:
-                        print(f"Error Converting DateTime: {str(e)}")
+                        logger.error(f"Error converting datetime for poll {post_id}: {str(e)}")
                         return JsonResponse({
                             'status': 'error',
                             'message': f'Invalid datetime format: {str(e)}'
@@ -457,16 +406,6 @@ def edit_post(request, post_id):
                     
                     # Update poll options
                     existing_options = post.poll_options.all()
-                    current_options = list(existing_options.values_list('text', flat=True))
-                    print(f"Current Options: {current_options}")
-                    
-                    # Track changes
-                    removed_options = set(current_options) - set(new_options)
-                    added_options = set(new_options) - set(current_options)
-                    print(f"Removed Options: {removed_options}")
-                    print(f"Added Options: {added_options}")
-                    
-                    # Delete removed options
                     existing_options.exclude(text__in=new_options).delete()
                     
                     # Update or create options
@@ -484,11 +423,8 @@ def edit_post(request, post_id):
                 post.subdepartment = None
                 
             post.save()
-            print("\nPost Updated Successfully")
-            print(f"Final Body Content: {post.body[:100]}...")
 
             if request.headers.get('HX-Request'):
-                print("\nPreparing HTMX Response")
                 # Get IST timezone
                 ist_tz = pytz.timezone('Asia/Kolkata')
                 
@@ -511,25 +447,13 @@ def edit_post(request, post_id):
                 }
                 
                 if post.post_type == 'poll':
-                    # Convert poll_end_time to IST for display
                     local_end_time = post.poll_end_time.astimezone(ist_tz)
-                    
                     post_data.update({
                         'poll_end_time': local_end_time.strftime('%Y-%m-%dT%H:%M:%S%z'),
                         'poll_options': list(post.poll_options.values_list('text', flat=True)),
                         'total_votes': post.total_votes,
                         'is_poll_active': post.is_poll_active
                     })
-                
-                print("\nSending Response Data:")
-                print(f"Updated Title: {post_data['title']}")
-                print(f"Updated Body: {post_data['body'][:100]}...")
-                print(f"Updated Department: {post_data['sub_department']}")
-                if post.post_type == 'poll':
-                    print(f"Updated Poll End Time: {post_data['poll_end_time']}")
-                    print(f"Updated Poll Options: {post_data['poll_options']}")
-                    print(f"Total Votes: {post_data['total_votes']}")
-                    print(f"Poll Active: {post_data['is_poll_active']}")
                 
                 response = render(request, 'components/partials/post_list.html', {'posts': [post_data]})
                 response['HX-Trigger'] = json.dumps({
@@ -541,12 +465,7 @@ def edit_post(request, post_id):
             return JsonResponse({'status': 'success'})
         
         except Exception as e:
-            import traceback
-            print("\nError in edit_post:")
-            print(f"Error Type: {type(e).__name__}")
-            print(f"Error Message: {str(e)}")
-            print("Stack Trace:")
-            print(traceback.format_exc())
+            logger.error(f"Error updating post {post_id}: {str(e)}")
             if request.headers.get('HX-Request'):
                 return HttpResponse(str(e), status=500)
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -581,14 +500,6 @@ def edit_post(request, post_id):
         'subdepartments': subdepartments
     }
     
-    print("\nGET Request - Sending Context:")
-    print(f"Post Type: {post_data['type']}")
-    print(f"Title: {post_data['title']}")
-    print(f"Department: {post_data['subdepartment']}")
-    if post.post_type == 'poll':
-        print(f"Poll End Time: {post_data['poll_end_time']}")
-        print(f"Poll Options: {post_data['poll_options']}")
-    
     if request.headers.get('HX-Request'):
         return render(request, 'components/partials/edit_post_modal.html', context)
     return JsonResponse(post_data)
@@ -596,16 +507,7 @@ def edit_post(request, post_id):
 @login_required
 @require_POST
 def delete_post(request, post_id):
-    print("\n=== Delete Post Request ===")
-    print(f"Request Method: {request.method}")
-    print(f"Post ID: {post_id}")
-    print(f"HTMX Request: {bool(request.headers.get('HX-Request'))}")
-    
     post = get_object_or_404(BlogPost, id=post_id)
-    print(f"\nPost Details:")
-    print(f"Type: {post.post_type}")
-    print(f"Title: {post.title}")
-    print(f"Department: {post.subdepartment.name if post.subdepartment else 'Global'}")
     
     # Check permissions
     if not (request.user.is_superuser or post.author.user == request.user or request.user.groups.filter(name="Tenant").exists()):
@@ -615,22 +517,9 @@ def delete_post(request, post_id):
         }, status=403)
     
     try:
-        # Store post info for logging
-        post_info = {
-            'id': post.id,
-            'type': post.post_type,
-            'title': post.title,
-            'author': post.author.user.username
-        }
-        
-        # Delete the post
         post.delete()
         
-        print("\nPost Deleted Successfully:")
-        print(f"Post Info: {post_info}")
-        
         if request.headers.get('HX-Request'):
-            # Return empty response with 200 status for HTMX
             response = HttpResponse('')
             response['HX-Trigger'] = json.dumps({
                 'showMessage': 'Post deleted successfully'
@@ -640,13 +529,7 @@ def delete_post(request, post_id):
         return JsonResponse({'status': 'success'})
         
     except Exception as e:
-        print("\nError Deleting Post:")
-        print(f"Error Type: {type(e).__name__}")
-        print(f"Error Message: {str(e)}")
-        print("Stack Trace:")
-        import traceback
-        print(traceback.format_exc())
-        
+        logger.error(f"Error deleting post {post_id}: {str(e)}")
         if request.headers.get('HX-Request'):
             return HttpResponse(str(e), status=500)
         return JsonResponse({
@@ -759,17 +642,14 @@ def generate_random_password(length=12):
 def import_users_view(request):
     if request.method == 'POST' and request.FILES.get('csv_file'):
         csv_file = request.FILES['csv_file']
-        print(f"Processing file: {csv_file.name}")
         
         # CSV File Storing Process Starts from here------------------------------------------------>
         try:
             root_collection = Collection.objects.get(name='Root')
             if root_collection.depth != 0:
-                print(f"Root collection has incorrect depth: {root_collection.depth}. Setting to 0.")
                 root_collection.depth = 0
                 root_collection.save()
         except Collection.DoesNotExist:
-            print("Root collection not found, creating one")
             root_collection = Collection.objects.create(
                 name='Root',
                 path='0001',
@@ -777,7 +657,6 @@ def import_users_view(request):
                 numchild=0
             )
         except Exception as e:
-            print(f"Error accessing root collection: {str(e)}")
             messages.error(request, f"Error accessing root collection: {str(e)}")
             return redirect('import_users')
         
@@ -792,11 +671,9 @@ def import_users_view(request):
                 }
             )
             if created:
-                print("Created 'User Imports' collection")
                 root_collection.numchild += 1
                 root_collection.save()
         except Exception as e:
-            print(f"Failed to get or create collection 'User Imports': {str(e)}")
             messages.error(request, f"Error setting up document collection: {str(e)}")
             return redirect('import_users')
         
@@ -809,7 +686,6 @@ def import_users_view(request):
                 collection=collection
             )
             document.save()
-            print(f"File saved as Custom Wagtail Document: {document.title}")
         except Exception as e:
             logger.error(f"Failed to save document '{csv_file.name}': {str(e)}")
             messages.error(request, f"Error saving document: {str(e)}")
@@ -861,11 +737,7 @@ def import_users_view(request):
 
             for row in csv_data:
                 try:
-                    # print(f"Processing user: {row['username']}")
-                    # print(f"User data: {row}")
-
                     random_password = generate_random_password()
-                    # print(f"Generated password for {row['username']}")
 
                     user, created = User.objects.get_or_create(
                         username=row['username'],
