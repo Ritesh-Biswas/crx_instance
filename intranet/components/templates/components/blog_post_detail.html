@@ -45,28 +45,25 @@
                 {% if post.post_type == 'poll' %}
                     <div class="poll-container">
                         <h3 class="h5 mb-3">{{ post.title }}</h3>                       
-                        {% if post.post_type == 'poll' %}
-                        <div class="poll-container mt-4">
-                            <!-- Update poll timer section -->
-                            {% if post.poll_end_time %}
-                                <div class="poll-timer mb-3">
-                                    {% if post.is_poll_active %}
-                                        <div class="alert alert-info">
-                                            Poll ends in: <span id="poll-timer" 
-                                                data-end="{{ post.poll_end_time|date:'c' }}"
-                                                data-timezone="UTC">
-                                            </span>
-                                        </div>
-                                    {% else %}
-                                        <div class="alert alert-warning">
-                                            This poll ended on 
-                                            <span class="convert-to-local-time" data-utc="{{ post.poll_end_time|date:'c' }}">
-                                                {{ post.poll_end_time|date:"F d, Y H:i" }}
-                                            </span>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
+                        {% if post.poll_end_time %}
+                            <div class="poll-timer mb-3">
+                                {% if post.is_poll_active %}
+                                    <div class="alert alert-info">
+                                        Poll ends in: <span id="poll-timer" 
+                                            data-end="{{ post.poll_end_time|date:'c' }}"
+                                            data-timezone="UTC">
+                                            Loading...
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-warning">
+                                        This poll ended on 
+                                        <span class="convert-to-local-time" data-utc="{{ post.poll_end_time|date:'c' }}">
+                                            {{ post.poll_end_time|date:"F d, Y H:i" }}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </div>
                         {% endif %}
 
                         <!-- Modified conditional logic to show results when poll ends or for author -->
@@ -434,61 +431,54 @@
                 const rawEndTime = timerElement.getAttribute("data-end");
                 console.log('Raw end time from data attribute:', rawEndTime);
                 
-                // Convert Eastern Time to IST by adding the difference (ET+4 to IST+5:30 = 9:30 hours)
-                const endTimeET = new Date(rawEndTime);
-                // Create a date object that represents the same time in IST
-                const endTimeIST = new Date(rawEndTime.replace('-04:00', '+05:30'));
+                // Parse the end time directly (it's already in correct format)
+                const endTime = new Date(rawEndTime);
+                console.log('End time:', endTime.toISOString());
                 
-                console.log('Original ET time:', endTimeET.toLocaleString('en-US', { 
-                    timeZone: 'America/New_York',
-                    hour12: false 
-                }));
-                console.log('Converted to IST:', endTimeIST.toLocaleString('en-US', { 
-                    timeZone: 'Asia/Kolkata',
-                    hour12: false 
-                }));
-                
+                let timerInterval;
+
                 function updateTimer() {
                     const now = new Date();
-                    // Convert current time to IST for comparison
-                    const nowIST = new Date(now.toLocaleString('en-US', {
-                        timeZone: 'Asia/Kolkata'
-                    }));
-                    const timeLeft = endTimeIST - nowIST;
+                    const timeLeft = endTime - now;
     
                     if (timeLeft <= 0) {
                         timerElement.innerHTML = "Poll has ended";
-                        clearInterval(timerInterval);
-                        location.reload();
-                    } else {
-                        // Calculate remaining time
-                        const totalHours = Math.floor(timeLeft / (1000 * 60 * 60));
-                        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-                        
-                        // Format time string with leading zeros
-                        const timeString = `${totalHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                        timerElement.innerHTML = timeString;
-                        
-                        // Debug log
-                        console.log('Time remaining:', {
-                            hours: totalHours,
-                            minutes,
-                            seconds,
-                            currentTimeIST: nowIST.toLocaleString('en-US', { 
-                                timeZone: 'Asia/Kolkata',
-                                hour12: false 
-                            }),
-                            endTimeIST: endTimeIST.toLocaleString('en-US', { 
-                                timeZone: 'Asia/Kolkata',
-                                hour12: false 
-                            })
-                        });
+                        timerElement.closest('.alert').classList.remove('alert-info');
+                        timerElement.closest('.alert').classList.add('alert-warning');
+                        if (timerInterval) {
+                            clearInterval(timerInterval);
+                        }
+                        setTimeout(() => location.reload(), 1000);
+                        return;
                     }
+
+                    // Calculate remaining time
+                    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    
+                    // Format time string
+                    let timeString = '';
+                    if (days > 0) {
+                        timeString += `${days}d `;
+                    }
+                    timeString += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    timerElement.innerHTML = timeString;
                 }
     
+                // Initial update
                 updateTimer();
-                const timerInterval = setInterval(updateTimer, 1000);
+                
+                // Set up interval
+                timerInterval = setInterval(updateTimer, 1000);
+                
+                // Clean up interval on page unload
+                window.addEventListener('unload', () => {
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                    }
+                });
             }
         });
 

@@ -273,91 +273,73 @@ class BlogPostDetailView(LoginRequiredMixin, DetailView):
 
 @login_required
 def load_more_posts(request):
-    page_number = request.GET.get('page', 1)
-    user = request.user
+    print("\n=== Load More Posts Request ===")
+    print(f"Request Method: {request.method}")
+    print(f"HTMX Request: {bool(request.headers.get('HX-Request'))}")
     
+    page = int(request.GET.get('page', 1))
+    post_type_filter = request.GET.get('post_type_filter', 'all')
+    department_filter = request.GET.get('department_filter', 'all')
+    
+    print(f"\nFilter Parameters:")
+    print(f"Page: {page}")
+    print(f"Post Type Filter: {post_type_filter}")
+    print(f"Department Filter: {department_filter}")
+    
+    posts_per_page = 10
     posts = BlogPost.objects.all().order_by('-created_at')
     
-    if not user.is_superuser and not user.groups.filter(name='Tenant').exists():
-        accessible_departments = SubDepartmentPage.objects.filter(
-            models.Q(members=user) | models.Q(site_admins=user)
-        ).distinct()
-        
-        posts = posts.filter(
-            models.Q(subdepartment__in=accessible_departments) | 
-            models.Q(subdepartment__isnull=True)
-        )
+    # Apply filters
+    if post_type_filter != 'all':
+        posts = posts.filter(post_type=post_type_filter)
     
-    # Apply filters if request is from HTMX
-    if request.headers.get('HX-Request'):
-        post_type = request.GET.get('post_type_filter')
-        department_id = request.GET.get('department_filter')
-        
-        if post_type and post_type != 'all':
-            posts = posts.filter(post_type=post_type)
-        
-        if department_id and department_id != 'all':
-            posts = posts.filter(subdepartment_id=department_id)
+    if department_filter != 'all':
+        posts = posts.filter(subdepartment_id=department_filter)
     
-    paginator = Paginator(posts, 10)
-
-    try:
-        page_obj = paginator.page(page_number)
-    except PageNotAnInteger:
-        page_obj = paginator.page(1)
-    except EmptyPage:
-        if request.headers.get('HX-Request'):
-            return HttpResponse('')  # Return empty response for HTMX infinite scroll
-        page_obj = paginator.page(paginator.num_pages)
+    # Calculate pagination
+    start = (page - 1) * posts_per_page
+    end = start + posts_per_page
+    paginated_posts = posts[start:end]
     
-    posts_data = []
-    for post in page_obj:
-        dept_url = ''
-        if post.subdepartment:
-            dept_url = post.subdepartment.url
-        
-        total_votes = 0
-        is_poll_active = True  # Default value
-        if post.post_type.lower() == 'poll':
-            total_votes = PollVote.objects.filter(post=post).count()
-            # Check if poll is still active
-            if post.poll_end_time:
-                is_poll_active = post.poll_end_time > timezone.now()
-        
-        is_liked = user.is_authenticated and post.likes.filter(id=user.id).exists()
-
-        # Convert to user's timezone for display
-        local_tz = timezone.get_current_timezone()
-        local_created_at = timezone.localtime(post.created_at, local_tz)
-
-        posts_data.append({
+    # Prepare post data
+    post_data = []
+    for post in paginated_posts:
+        post_dict = {
             'id': post.id,
-            'author': post.author.user.id,
-            'author_name': post.author.user.get_full_name(),
-            'author_profile_url': reverse('custom_user:profile-detail', kwargs={'username': post.author.user.username}),
             'title': post.title,
-            'type': post.post_type,
             'body': post.body,
-            'created_at': local_created_at.isoformat(),
+            'created_at': post.created_at.isoformat(),
+            'author': post.author.user.username,
+            'author_profile_url': reverse('custom_user:profile-detail', args=[post.author.user.username]),
+            'url': reverse('components:blog_post_detail', args=[post.id]),
+            'type': post.post_type,
+            'likes_count': post.likes.count(),
+            'comments_count': post.comments.count(),
+            'is_like_by_user': request.user in post.likes.all(),
+            'total_votes': post.total_votes if post.post_type == 'poll' else 0,
             'poll_end_time': post.poll_end_time.isoformat() if post.poll_end_time else None,
-            'likes_count': post.likes_count,
-            'comments_count': post.get_comments().count(),
             'sub_department': post.subdepartment.name if post.subdepartment else 'Global',
-            'dept_url': dept_url,
-            'department_id': post.subdepartment.id if post.subdepartment else 'global',
-            'url': reverse('components:blog_post_detail', kwargs={'pk': post.pk}),
-            'total_votes': total_votes,
-            'is_poll_active': is_poll_active,
-            'is_like_by_user': is_liked,  
-        })
+            'dept_url': reverse('home:department', args=[post.subdepartment.slug]) if post.subdepartment else None,
+            'author_name': post.author.user.get_full_name() or post.author.user.username
+        }
+        post_data.append(post_dict)
+        
+        print(f"\nPost Details:")
+        print(f"ID: {post.id}")
+        print(f"Type: {post.post_type}")
+        print(f"Title: {post.title}")
+        if post.post_type == 'poll':
+            print(f"Poll End Time: {post.poll_end_time}")
+            print(f"Total Votes: {post.total_votes}")
     
-    # Return HTML for HTMX requests
+    context = {
+        'posts': post_data,
+        'has_more': end < posts.count()
+    }
+    
     if request.headers.get('HX-Request'):
-        return render(request, 'components/partials/post_list.html', {
-            'posts': posts_data
-        })
-    
-    return JsonResponse({'posts': posts_data})
+        return render(request, 'components/partials/post_list.html', context)
+    return JsonResponse(context)
 
 
 @login_required
